@@ -1,9 +1,9 @@
-import {Node, Mark} from "prosemirror-model"
-import {Mappable, Mapping} from "prosemirror-transform"
-import {EditorView} from "./index"
-import {DOMNode} from "./dom"
+import { Node, Mark } from 'prosemirror-model'
+import { Mappable, Mapping } from 'prosemirror-transform'
+import { EditorView } from './index'
+import { DOMNode } from './dom'
 
-function compareObjs(a: {[prop: string]: any}, b: {[prop: string]: any}) {
+function compareObjs(a: { [prop: string]: any }, b: { [prop: string]: any }) {
   if (a == b) return true
   for (let p in a) if (a[p] !== b[p]) return false
   for (let p in b) if (!(p in a)) return false
@@ -18,7 +18,9 @@ export interface DecorationType {
   destroy(dom: DOMNode): void
 }
 
-export type WidgetConstructor = ((view: EditorView, getPos: () => number | undefined) => DOMNode) | DOMNode
+export type WidgetConstructor =
+  | ((view: EditorView, getPos: () => number | undefined) => DOMNode)
+  | DOMNode
 
 export class WidgetType implements DecorationType {
   spec: any
@@ -30,17 +32,21 @@ export class WidgetType implements DecorationType {
   }
 
   map(mapping: Mappable, span: Decoration, offset: number, oldOffset: number): Decoration | null {
-    let {pos, deleted} = mapping.mapResult(span.from + oldOffset, this.side < 0 ? -1 : 1)
+    let { pos, deleted } = mapping.mapResult(span.from + oldOffset, this.side < 0 ? -1 : 1)
     return deleted ? null : new Decoration(pos - offset, pos - offset, this)
   }
 
-  valid() { return true }
+  valid() {
+    return true
+  }
 
   eq(other: WidgetType) {
-    return this == other ||
+    return (
+      this == other ||
       (other instanceof WidgetType &&
-       (this.spec.key && this.spec.key == other.spec.key ||
-        this.toDOM == other.toDOM && compareObjs(this.spec, other.spec)))
+        ((this.spec.key && this.spec.key == other.spec.key) ||
+          (this.toDOM == other.toDOM && compareObjs(this.spec, other.spec))))
+    )
   }
 
   destroy(node: DOMNode) {
@@ -61,15 +67,22 @@ export class InlineType implements DecorationType {
     return from >= to ? null : new Decoration(from, to, this)
   }
 
-  valid(_: Node, span: Decoration) { return span.from < span.to }
-
-  eq(other: DecorationType): boolean {
-    return this == other ||
-      (other instanceof InlineType && compareObjs(this.attrs, other.attrs) &&
-       compareObjs(this.spec, other.spec))
+  valid(_: Node, span: Decoration) {
+    return span.from < span.to
   }
 
-  static is(span: Decoration) { return span.type instanceof InlineType }
+  eq(other: DecorationType): boolean {
+    return (
+      this == other ||
+      (other instanceof InlineType &&
+        compareObjs(this.attrs, other.attrs) &&
+        compareObjs(this.spec, other.spec))
+    )
+  }
+
+  static is(span: Decoration) {
+    return span.type instanceof InlineType
+  }
 
   destroy() {}
 }
@@ -89,14 +102,22 @@ export class NodeType implements DecorationType {
   }
 
   valid(node: Node, span: Decoration): boolean {
-    let {index, offset} = node.content.findIndex(span.from), child
-    return offset == span.from && !(child = node.child(index)).isText && offset + child.nodeSize == span.to
+    let { index, offset } = node.content.findIndex(span.from),
+      child
+    return (
+      offset == span.from &&
+      !(child = node.child(index)).isText &&
+      offset + child.nodeSize == span.to
+    )
   }
 
   eq(other: DecorationType): boolean {
-    return this == other ||
-      (other instanceof NodeType && compareObjs(this.attrs, other.attrs) &&
-       compareObjs(this.spec, other.spec))
+    return (
+      this == other ||
+      (other instanceof NodeType &&
+        compareObjs(this.attrs, other.attrs) &&
+        compareObjs(this.spec, other.spec))
+    )
   }
 
   destroy() {}
@@ -124,7 +145,9 @@ export class Decoration {
 
   /// @internal
   eq(other: Decoration, offset = 0) {
-    return this.type.eq(other.type) && this.from + offset == other.from && this.to + offset == other.to
+    return (
+      this.type.eq(other.type) && this.from + offset == other.from && this.to + offset == other.to
+    )
   }
 
   /// @internal
@@ -138,88 +161,97 @@ export class Decoration {
   /// called when the widget is actually drawn in a view, but you can
   /// also directly pass a DOM node. `getPos` can be used to find the
   /// widget's current document position.
-  static widget(pos: number, toDOM: WidgetConstructor, spec?: {
-    /// Controls which side of the document position this widget is
-    /// associated with. When negative, it is drawn before a cursor
-    /// at its position, and content inserted at that position ends
-    /// up after the widget. When zero (the default) or positive, the
-    /// widget is drawn after the cursor and content inserted there
-    /// ends up before the widget.
-    ///
-    /// When there are multiple widgets at a given position, their
-    /// `side` values determine the order in which they appear. Those
-    /// with lower values appear first. The ordering of widgets with
-    /// the same `side` value is unspecified.
-    ///
-    /// When `marks` is null, `side` also determines the marks that
-    /// the widget is wrapped in—those of the node before when
-    /// negative, those of the node after when positive.
-    side?: number
+  static widget(
+    pos: number,
+    toDOM: WidgetConstructor,
+    spec?: {
+      /// Controls which side of the document position this widget is
+      /// associated with. When negative, it is drawn before a cursor
+      /// at its position, and content inserted at that position ends
+      /// up after the widget. When zero (the default) or positive, the
+      /// widget is drawn after the cursor and content inserted there
+      /// ends up before the widget.
+      ///
+      /// When there are multiple widgets at a given position, their
+      /// `side` values determine the order in which they appear. Those
+      /// with lower values appear first. The ordering of widgets with
+      /// the same `side` value is unspecified.
+      ///
+      /// When `marks` is null, `side` also determines the marks that
+      /// the widget is wrapped in—those of the node before when
+      /// negative, those of the node after when positive.
+      side?: number
 
-    /// By default, the cursor, when at the position of the widget,
-    /// will be strictly kept on the side indicated by
-    /// [`side`](#view.Decoration^widget^spec.side). Set this to true
-    /// to allow the DOM selection to stay on the other side if the
-    /// client sets it there.
-    ///
-    /// **Note**: Mapping of this decoration, which decides on which
-    /// side insertions at its position appear, will still happen
-    /// according to `side`, and keyboard cursor motion will not,
-    /// without further custom handling, visit both sides of the
-    /// widget.
-    relaxedSide?: boolean
+      /// By default, the cursor, when at the position of the widget,
+      /// will be strictly kept on the side indicated by
+      /// [`side`](#view.Decoration^widget^spec.side). Set this to true
+      /// to allow the DOM selection to stay on the other side if the
+      /// client sets it there.
+      ///
+      /// **Note**: Mapping of this decoration, which decides on which
+      /// side insertions at its position appear, will still happen
+      /// according to `side`, and keyboard cursor motion will not,
+      /// without further custom handling, visit both sides of the
+      /// widget.
+      relaxedSide?: boolean
 
-    /// The precise set of marks to draw around the widget.
-    marks?: readonly Mark[]
+      /// The precise set of marks to draw around the widget.
+      marks?: readonly Mark[]
 
-    /// Can be used to control which DOM events, when they bubble out
-    /// of this widget, the editor view should ignore.
-    stopEvent?: (event: Event) => boolean
+      /// Can be used to control which DOM events, when they bubble out
+      /// of this widget, the editor view should ignore.
+      stopEvent?: (event: Event) => boolean
 
-    /// When set (defaults to false), selection changes inside the
-    /// widget are ignored, and don't cause ProseMirror to try and
-    /// re-sync the selection with its selection state.
-    ignoreSelection?: boolean
+      /// When set (defaults to false), selection changes inside the
+      /// widget are ignored, and don't cause ProseMirror to try and
+      /// re-sync the selection with its selection state.
+      ignoreSelection?: boolean
 
-    /// When comparing decorations of this type (in order to decide
-    /// whether it needs to be redrawn), ProseMirror will by default
-    /// compare the widget DOM node by identity. If you pass a key,
-    /// that key will be compared instead, which can be useful when
-    /// you generate decorations on the fly and don't want to store
-    /// and reuse DOM nodes. Make sure that any widgets with the same
-    /// key are interchangeable—if widgets differ in, for example,
-    /// the behavior of some event handler, they should get
-    /// different keys.
-    key?: string
+      /// When comparing decorations of this type (in order to decide
+      /// whether it needs to be redrawn), ProseMirror will by default
+      /// compare the widget DOM node by identity. If you pass a key,
+      /// that key will be compared instead, which can be useful when
+      /// you generate decorations on the fly and don't want to store
+      /// and reuse DOM nodes. Make sure that any widgets with the same
+      /// key are interchangeable—if widgets differ in, for example,
+      /// the behavior of some event handler, they should get
+      /// different keys.
+      key?: string
 
-    /// Called when the widget decoration is removed or the editor is
-    /// destroyed.
-    destroy?: (node: DOMNode) => void
+      /// Called when the widget decoration is removed or the editor is
+      /// destroyed.
+      destroy?: (node: DOMNode) => void
 
-    /// Specs allow arbitrary additional properties.
-    [key: string]: any
-  }): Decoration {
+      /// Specs allow arbitrary additional properties.
+      [key: string]: any
+    }
+  ): Decoration {
     return new Decoration(pos, pos, new WidgetType(toDOM, spec))
   }
 
   /// Creates an inline decoration, which adds the given attributes to
   /// each inline node between `from` and `to`.
-  static inline(from: number, to: number, attrs: DecorationAttrs, spec?: {
-    /// Determines how the left side of the decoration is
-    /// [mapped](#transform.Position_Mapping) when content is
-    /// inserted directly at that position. By default, the decoration
-    /// won't include the new content, but you can set this to `true`
-    /// to make it inclusive.
-    inclusiveStart?: boolean
+  static inline(
+    from: number,
+    to: number,
+    attrs: DecorationAttrs,
+    spec?: {
+      /// Determines how the left side of the decoration is
+      /// [mapped](#transform.Position_Mapping) when content is
+      /// inserted directly at that position. By default, the decoration
+      /// won't include the new content, but you can set this to `true`
+      /// to make it inclusive.
+      inclusiveStart?: boolean
 
-    /// Determines how the right side of the decoration is mapped.
-    /// See
-    /// [`inclusiveStart`](#view.Decoration^inline^spec.inclusiveStart).
-    inclusiveEnd?: boolean
+      /// Determines how the right side of the decoration is mapped.
+      /// See
+      /// [`inclusiveStart`](#view.Decoration^inline^spec.inclusiveStart).
+      inclusiveEnd?: boolean
 
-    /// Specs may have arbitrary additional properties.
-    [key: string]: any
-  }) {
+      /// Specs may have arbitrary additional properties.
+      [key: string]: any
+    }
+  ) {
     return new Decoration(from, to, new InlineType(attrs, spec))
   }
 
@@ -232,13 +264,19 @@ export class Decoration {
 
   /// The spec provided when creating this decoration. Can be useful
   /// if you've stored extra information in that object.
-  get spec() { return this.type.spec }
+  get spec() {
+    return this.type.spec
+  }
 
   /// @internal
-  get inline() { return this.type instanceof InlineType }
+  get inline() {
+    return this.type instanceof InlineType
+  }
 
   /// @internal
-  get widget() { return this.type instanceof WidgetType }
+  get widget() {
+    return this.type instanceof WidgetType
+  }
 }
 
 /// A set of attributes to add to a decorated node. Most properties
@@ -260,7 +298,8 @@ export type DecorationAttrs = {
   [attribute: string]: string | undefined
 }
 
-const none: readonly any[] = [], noSpec = {}
+const none: readonly any[] = [],
+  noSpec = {}
 
 /// An object that can [provide](#view.EditorProps.decorations)
 /// decorations. Implemented by [`DecorationSet`](#view.DecorationSet),
@@ -314,7 +353,13 @@ export class DecorationSet implements DecorationSource {
     return result
   }
 
-  private findInner(start: number, end: number, result: Decoration[], offset: number, predicate?: (spec: any) => boolean) {
+  private findInner(
+    start: number,
+    end: number,
+    result: Decoration[],
+    offset: number,
+    predicate?: (spec: any) => boolean
+  ) {
     for (let i = 0; i < this.local.length; i++) {
       let span = this.local[i]
       if (span.from <= end && span.to >= start && (!predicate || predicate(span.spec)))
@@ -323,28 +368,43 @@ export class DecorationSet implements DecorationSource {
     for (let i = 0; i < this.children.length; i += 3) {
       if ((this.children[i] as number) < end && (this.children[i + 1] as number) > start) {
         let childOff = (this.children[i] as number) + 1
-        ;(this.children[i + 2] as DecorationSet).findInner(start - childOff, end - childOff,
-                                                           result, offset + childOff, predicate)
+        ;(this.children[i + 2] as DecorationSet).findInner(
+          start - childOff,
+          end - childOff,
+          result,
+          offset + childOff,
+          predicate
+        )
       }
     }
   }
 
   /// Map the set of decorations in response to a change in the
   /// document.
-  map(mapping: Mapping, doc: Node, options?: {
-    /// When given, this function will be called for each decoration
-    /// that gets dropped as a result of the mapping, passing the
-    /// spec of that decoration.
-    onRemove?: (decorationSpec: any) => void
-  }) {
+  map(
+    mapping: Mapping,
+    doc: Node,
+    options?: {
+      /// When given, this function will be called for each decoration
+      /// that gets dropped as a result of the mapping, passing the
+      /// spec of that decoration.
+      onRemove?: (decorationSpec: any) => void
+    }
+  ) {
     if (this == empty || mapping.maps.length == 0) return this
     return this.mapInner(mapping, doc, 0, 0, options || noSpec)
   }
 
   /// @internal
-  mapInner(mapping: Mapping, node: Node, offset: number, oldOffset: number, options: {
-    onRemove?: (decorationSpec: any) => void
-  }) {
+  mapInner(
+    mapping: Mapping,
+    node: Node,
+    offset: number,
+    oldOffset: number,
+    options: {
+      onRemove?: (decorationSpec: any) => void
+    }
+  ) {
     let newLocal: Decoration[] | undefined
     for (let i = 0; i < this.local.length; i++) {
       let mapped = this.local[i].map(mapping, offset, oldOffset)
@@ -354,8 +414,7 @@ export class DecorationSet implements DecorationSource {
 
     if (this.children.length)
       return mapChildren(this.children, newLocal || [], mapping, node, offset, oldOffset, options)
-    else
-      return newLocal ? new DecorationSet(newLocal.sort(byPos), none) : empty
+    else return newLocal ? new DecorationSet(newLocal.sort(byPos), none) : empty
   }
 
   /// Add the given array of decorations to the ones in the set,
@@ -369,25 +428,41 @@ export class DecorationSet implements DecorationSource {
   }
 
   private addInner(doc: Node, decorations: Decoration[], offset: number) {
-    let children: (number | DecorationSet)[] | undefined, childIndex = 0
+    let children: (number | DecorationSet)[] | undefined,
+      childIndex = 0
     doc.forEach((childNode, childOffset) => {
-      let baseOffset = childOffset + offset, found
+      let baseOffset = childOffset + offset,
+        found
       if (!(found = takeSpansForNode(decorations, childNode, baseOffset))) return
 
       if (!children) children = this.children.slice()
-      while (childIndex < children.length && (children[childIndex] as number) < childOffset) childIndex += 3
+      while (childIndex < children.length && (children[childIndex] as number) < childOffset)
+        childIndex += 3
       if (children[childIndex] == childOffset)
-        children[childIndex + 2] = (children[childIndex + 2] as DecorationSet).addInner(childNode, found, baseOffset + 1)
+        children[childIndex + 2] = (children[childIndex + 2] as DecorationSet).addInner(
+          childNode,
+          found,
+          baseOffset + 1
+        )
       else
-        children.splice(childIndex, 0, childOffset, childOffset + childNode.nodeSize, buildTree(found, childNode, baseOffset + 1, noSpec))
+        children.splice(
+          childIndex,
+          0,
+          childOffset,
+          childOffset + childNode.nodeSize,
+          buildTree(found, childNode, baseOffset + 1, noSpec)
+        )
       childIndex += 3
     })
 
     let local = moveSpans(childIndex ? withoutNulls(decorations) : decorations, -offset)
-    for (let i = 0; i < local.length; i++) if (!local[i].type.valid(doc, local[i])) local.splice(i--, 1)
+    for (let i = 0; i < local.length; i++)
+      if (!local[i].type.valid(doc, local[i])) local.splice(i--, 1)
 
-    return new DecorationSet(local.length ? this.local.concat(local).sort(byPos) : this.local,
-                             children || this.children)
+    return new DecorationSet(
+      local.length ? this.local.concat(local).sort(byPos) : this.local,
+      children || this.children
+    )
   }
 
   /// Create a new set that contains the decorations in this set, minus
@@ -398,16 +473,19 @@ export class DecorationSet implements DecorationSource {
   }
 
   private removeInner(decorations: (Decoration | null)[], offset: number) {
-    let children = this.children as (number | DecorationSet)[], local = this.local as Decoration[]
+    let children = this.children as (number | DecorationSet)[],
+      local = this.local as Decoration[]
     for (let i = 0; i < children.length; i += 3) {
       let found: Decoration[] | undefined
-      let from = (children[i] as number) + offset, to = (children[i + 1] as number) + offset
-      for (let j = 0, span; j < decorations.length; j++) if (span = decorations[j]) {
-        if (span.from > from && span.to < to) {
-          decorations[j] = null
-          ;(found || (found = [])).push(span)
+      let from = (children[i] as number) + offset,
+        to = (children[i + 1] as number) + offset
+      for (let j = 0, span; j < decorations.length; j++)
+        if ((span = decorations[j])) {
+          if (span.from > from && span.to < to) {
+            decorations[j] = null
+            ;(found || (found = [])).push(span)
+          }
         }
-      }
       if (!found) continue
       if (children == this.children) children = this.children.slice()
       let removed = (children[i + 2] as DecorationSet).removeInner(found, from + 1)
@@ -418,12 +496,15 @@ export class DecorationSet implements DecorationSource {
         i -= 3
       }
     }
-    if (local.length) for (let i = 0, span; i < decorations.length; i++) if (span = decorations[i]) {
-      for (let j = 0; j < local.length; j++) if (local[j].eq(span, offset)) {
-        if (local == this.local) local = this.local.slice()
-        local.splice(j--, 1)
-      }
-    }
+    if (local.length)
+      for (let i = 0, span; i < decorations.length; i++)
+        if ((span = decorations[i])) {
+          for (let j = 0; j < local.length; j++)
+            if (local[j].eq(span, offset)) {
+              if (local == this.local) local = this.local.slice()
+              local.splice(j--, 1)
+            }
+        }
     if (children == this.children && local == this.local) return this
     return local.length || children.length ? new DecorationSet(local, children) : empty
   }
@@ -433,15 +514,18 @@ export class DecorationSet implements DecorationSource {
     if (node.isLeaf) return DecorationSet.empty
 
     let child, local: Decoration[] | undefined
-    for (let i = 0; i < this.children.length; i += 3) if ((this.children[i] as number) >= offset) {
-      if (this.children[i] == offset) child = this.children[i + 2] as DecorationSet
-      break
-    }
-    let start = offset + 1, end = start + node.content.size
+    for (let i = 0; i < this.children.length; i += 3)
+      if ((this.children[i] as number) >= offset) {
+        if (this.children[i] == offset) child = this.children[i + 2] as DecorationSet
+        break
+      }
+    let start = offset + 1,
+      end = start + node.content.size
     for (let i = 0; i < this.local.length; i++) {
       let dec = this.local[i]
-      if (dec.from < end && dec.to > start && (dec.type instanceof InlineType)) {
-        let from = Math.max(start, dec.from) - start, to = Math.min(end, dec.to) - start
+      if (dec.from < end && dec.to > start && dec.type instanceof InlineType) {
+        let from = Math.max(start, dec.from) - start,
+          to = Math.min(end, dec.to) - start
         if (from < to) (local || (local = [])).push(dec.copy(from, to))
       }
     }
@@ -455,15 +539,19 @@ export class DecorationSet implements DecorationSource {
   /// @internal
   eq(other: DecorationSet) {
     if (this == other) return true
-    if (!(other instanceof DecorationSet) ||
-        this.local.length != other.local.length ||
-        this.children.length != other.children.length) return false
-    for (let i = 0; i < this.local.length; i++)
-      if (!this.local[i].eq(other.local[i])) return false
+    if (
+      !(other instanceof DecorationSet) ||
+      this.local.length != other.local.length ||
+      this.children.length != other.children.length
+    )
+      return false
+    for (let i = 0; i < this.local.length; i++) if (!this.local[i].eq(other.local[i])) return false
     for (let i = 0; i < this.children.length; i += 3)
-      if (this.children[i] != other.children[i] ||
-          this.children[i + 1] != other.children[i + 1] ||
-          !(this.children[i + 2] as DecorationSet).eq(other.children[i + 2] as DecorationSet))
+      if (
+        this.children[i] != other.children[i] ||
+        this.children[i + 1] != other.children[i + 1] ||
+        !(this.children[i + 2] as DecorationSet).eq(other.children[i + 2] as DecorationSet)
+      )
         return false
     return true
   }
@@ -479,8 +567,7 @@ export class DecorationSet implements DecorationSource {
     if (node.inlineContent || !this.local.some(InlineType.is)) return this.local
     let result = []
     for (let i = 0; i < this.local.length; i++) {
-      if (!(this.local[i].type instanceof InlineType))
-        result.push(this.local[i])
+      if (!(this.local[i].type instanceof InlineType)) result.push(this.local[i])
     }
     return result
   }
@@ -491,7 +578,9 @@ export class DecorationSet implements DecorationSource {
   /// @internal
   static removeOverlap = removeOverlap
 
-  forEachSet(f: (set: DecorationSet) => void) { f(this) }
+  forEachSet(f: (set: DecorationSet) => void) {
+    f(this)
+  }
 }
 
 const empty = DecorationSet.empty
@@ -503,9 +592,7 @@ class DecorationGroup implements DecorationSource {
   constructor(readonly members: readonly DecorationSet[]) {}
 
   map(mapping: Mapping, doc: Node) {
-    const mappedDecos = this.members.map(
-      member => member.map(mapping, doc, noSpec)
-    )
+    const mappedDecos = this.members.map(member => member.map(mapping, doc, noSpec))
     return DecorationGroup.from(mappedDecos)
   }
 
@@ -522,15 +609,16 @@ class DecorationGroup implements DecorationSource {
   }
 
   eq(other: DecorationGroup) {
-    if (!(other instanceof DecorationGroup) ||
-        other.members.length != this.members.length) return false
+    if (!(other instanceof DecorationGroup) || other.members.length != this.members.length)
+      return false
     for (let i = 0; i < this.members.length; i++)
       if (!this.members[i].eq(other.members[i])) return false
     return true
   }
 
   locals(node: Node) {
-    let result: Decoration[] | undefined, sorted = true
+    let result: Decoration[] | undefined,
+      sorted = true
     for (let i = 0; i < this.members.length; i++) {
       let locals = this.members[i].localsInner(node)
       if (!locals.length) continue
@@ -551,12 +639,19 @@ class DecorationGroup implements DecorationSource {
   // a single set when possible.
   static from(members: readonly DecorationSource[]): DecorationSource {
     switch (members.length) {
-      case 0: return empty
-      case 1: return members[0]
-      default: return new DecorationGroup(
-        members.every(m => m instanceof DecorationSet) ? members as DecorationSet[] :
-          members.reduce((r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
-                         [] as DecorationSet[]))
+      case 0:
+        return empty
+      case 1:
+        return members[0]
+      default:
+        return new DecorationGroup(
+          members.every(m => m instanceof DecorationSet)
+            ? (members as DecorationSet[])
+            : members.reduce(
+                (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
+                [] as DecorationSet[]
+              )
+        )
     }
   }
 
@@ -572,7 +667,7 @@ function mapChildren(
   node: Node,
   offset: number,
   oldOffset: number,
-  options: {onRemove?: (decorationSpec: any) => void}
+  options: { onRemove?: (decorationSpec: any) => void }
 ) {
   let children = oldChildren.slice() as (number | DecorationSet)[]
 
@@ -580,68 +675,87 @@ function mapChildren(
   // move those that are after the changes.
   for (let i = 0, baseOffset = oldOffset; i < mapping.maps.length; i++) {
     let moved = 0
-    mapping.maps[i].forEach((oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
-      let dSize = (newEnd - newStart) - (oldEnd - oldStart)
-      for (let i = 0; i < children.length; i += 3) {
-        let end = children[i + 1] as number
-        if (end < 0 || oldStart > end + baseOffset - moved) continue
-        let start = (children[i] as number) + baseOffset - moved
-        if (oldEnd >= start) {
-          children[i + 1] = oldStart <= start ? -2 : -1
-        } else if (oldStart >= baseOffset && dSize) {
-          ;(children[i] as number) += dSize
-          ;(children[i + 1] as number) += dSize
+    mapping.maps[i].forEach(
+      (oldStart: number, oldEnd: number, newStart: number, newEnd: number) => {
+        let dSize = newEnd - newStart - (oldEnd - oldStart)
+        for (let i = 0; i < children.length; i += 3) {
+          let end = children[i + 1] as number
+          if (end < 0 || oldStart > end + baseOffset - moved) continue
+          let start = (children[i] as number) + baseOffset - moved
+          if (oldEnd >= start) {
+            children[i + 1] = oldStart <= start ? -2 : -1
+          } else if (oldStart >= baseOffset && dSize) {
+            ;(children[i] as number) += dSize
+            ;(children[i + 1] as number) += dSize
+          }
         }
+        moved += dSize
       }
-      moved += dSize
-    })
+    )
     baseOffset = mapping.maps[i].map(baseOffset, -1)
   }
 
   // Find the child nodes that still correspond to a single node,
   // recursively call mapInner on them and update their positions.
   let mustRebuild = false
-  for (let i = 0; i < children.length; i += 3) if ((children[i + 1] as number) < 0) { // Touched nodes
-    if (children[i + 1] == -2) {
-      mustRebuild = true
-      children[i + 1] = -1
-      continue
-    }
-    let from = mapping.map((oldChildren[i] as number) + oldOffset), fromLocal = from - offset
-    if (fromLocal < 0 || fromLocal >= node.content.size) {
-      mustRebuild = true
-      continue
-    }
-    // Must read oldChildren because children was tagged with -1
-    let to = mapping.map((oldChildren[i + 1] as number) + oldOffset, -1), toLocal = to - offset
-    let {index, offset: childOffset} = node.content.findIndex(fromLocal)
-    let childNode = node.maybeChild(index)
-    if (childNode && childOffset == fromLocal && childOffset + childNode.nodeSize == toLocal) {
-      let mapped = (children[i + 2] as DecorationSet)
-                     .mapInner(mapping, childNode, from + 1, (oldChildren[i] as number) + oldOffset + 1, options)
-      if (mapped != empty) {
-        children[i] = fromLocal
-        children[i + 1] = toLocal
-        children[i + 2] = mapped
+  for (let i = 0; i < children.length; i += 3)
+    if ((children[i + 1] as number) < 0) {
+      // Touched nodes
+      if (children[i + 1] == -2) {
+        mustRebuild = true
+        children[i + 1] = -1
+        continue
+      }
+      let from = mapping.map((oldChildren[i] as number) + oldOffset),
+        fromLocal = from - offset
+      if (fromLocal < 0 || fromLocal >= node.content.size) {
+        mustRebuild = true
+        continue
+      }
+      // Must read oldChildren because children was tagged with -1
+      let to = mapping.map((oldChildren[i + 1] as number) + oldOffset, -1),
+        toLocal = to - offset
+      let { index, offset: childOffset } = node.content.findIndex(fromLocal)
+      let childNode = node.maybeChild(index)
+      if (childNode && childOffset == fromLocal && childOffset + childNode.nodeSize == toLocal) {
+        let mapped = (children[i + 2] as DecorationSet).mapInner(
+          mapping,
+          childNode,
+          from + 1,
+          (oldChildren[i] as number) + oldOffset + 1,
+          options
+        )
+        if (mapped != empty) {
+          children[i] = fromLocal
+          children[i + 1] = toLocal
+          children[i + 2] = mapped
+        } else {
+          children[i + 1] = -2
+          mustRebuild = true
+        }
       } else {
-        children[i + 1] = -2
         mustRebuild = true
       }
-    } else {
-      mustRebuild = true
     }
-  }
 
   // Remaining children must be collected and rebuilt into the appropriate structure
   if (mustRebuild) {
-    let decorations = mapAndGatherRemainingDecorations(children, oldChildren, newLocal, mapping,
-                                                       offset, oldOffset, options)
+    let decorations = mapAndGatherRemainingDecorations(
+      children,
+      oldChildren,
+      newLocal,
+      mapping,
+      offset,
+      oldOffset,
+      options
+    )
     let built = buildTree(decorations, node, 0, options)
     newLocal = built.local as Decoration[]
-    for (let i = 0; i < children.length; i += 3) if ((children[i + 1] as number) < 0) {
-      children.splice(i, 3)
-      i -= 3
-    }
+    for (let i = 0; i < children.length; i += 3)
+      if ((children[i + 1] as number) < 0) {
+        children.splice(i, 3)
+        i -= 3
+      }
     for (let i = 0, j = 0; i < built.children.length; i += 3) {
       let from = built.children[i]
       while (j < children.length && children[j] < from) j += 3
@@ -669,7 +783,7 @@ function mapAndGatherRemainingDecorations(
   mapping: Mapping,
   offset: number,
   oldOffset: number,
-  options: {onRemove?: (decorationSpec: any) => void}
+  options: { onRemove?: (decorationSpec: any) => void }
 ) {
   // Gather all decorations from the remaining marked children
   function gather(set: DecorationSet, oldOffset: number) {
@@ -679,17 +793,23 @@ function mapAndGatherRemainingDecorations(
       else if (options.onRemove) options.onRemove(set.local[i].spec)
     }
     for (let i = 0; i < set.children.length; i += 3)
-      gather(set.children[i + 2] as DecorationSet, set.children[i] as number + oldOffset + 1)
+      gather(set.children[i + 2] as DecorationSet, (set.children[i] as number) + oldOffset + 1)
   }
-  for (let i = 0; i < children.length; i += 3) if (children[i + 1] == -1)
-    gather(children[i + 2] as DecorationSet, oldChildren[i] as number + oldOffset + 1)
+  for (let i = 0; i < children.length; i += 3)
+    if (children[i + 1] == -1)
+      gather(children[i + 2] as DecorationSet, (oldChildren[i] as number) + oldOffset + 1)
 
   return decorations
 }
 
-function takeSpansForNode(spans: (Decoration | null)[], node: Node, offset: number): Decoration[] | null {
+function takeSpansForNode(
+  spans: (Decoration | null)[],
+  node: Node,
+  offset: number
+): Decoration[] | null {
   if (node.isLeaf) return null
-  let end = offset + node.nodeSize, found = null
+  let end = offset + node.nodeSize,
+    found = null
   for (let i = 0, span; i < spans.length; i++) {
     if ((span = spans[i]) && span.from > offset && span.to < end) {
       ;(found || (found = [])).push(span)
@@ -701,8 +821,7 @@ function takeSpansForNode(spans: (Decoration | null)[], node: Node, offset: numb
 
 function withoutNulls<T>(array: readonly (T | null)[]): T[] {
   let result: T[] = []
-  for (let i = 0; i < array.length; i++)
-    if (array[i] != null) result.push(array[i]!)
+  for (let i = 0; i < array.length; i++) if (array[i] != null) result.push(array[i]!)
   return result
 }
 
@@ -714,23 +833,24 @@ function buildTree(
   spans: Decoration[],
   node: Node,
   offset: number,
-  options: {onRemove?: (decorationSpec: any) => void}
+  options: { onRemove?: (decorationSpec: any) => void }
 ) {
-  let children: (DecorationSet | number)[] = [], hasNulls = false
+  let children: (DecorationSet | number)[] = [],
+    hasNulls = false
   node.forEach((childNode, localStart) => {
     let found = takeSpansForNode(spans, childNode, localStart + offset)
     if (found) {
       hasNulls = true
       let subtree = buildTree(found, childNode, offset + localStart + 1, options)
-      if (subtree != empty)
-        children.push(localStart, localStart + childNode.nodeSize, subtree)
+      if (subtree != empty) children.push(localStart, localStart + childNode.nodeSize, subtree)
     }
   })
   let locals = moveSpans(hasNulls ? withoutNulls(spans) : spans, -offset).sort(byPos)
-  for (let i = 0; i < locals.length; i++) if (!locals[i].type.valid(node, locals[i])) {
-    if (options.onRemove) options.onRemove(locals[i].spec)
-    locals.splice(i--, 1)
-  }
+  for (let i = 0; i < locals.length; i++)
+    if (!locals[i].type.valid(node, locals[i])) {
+      if (options.onRemove) options.onRemove(locals[i].spec)
+      locals.splice(i--, 1)
+    }
   return locals.length || children.length ? new DecorationSet(locals, children) : empty
 }
 
@@ -749,28 +869,29 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
   let working: Decoration[] = spans as Decoration[]
   for (let i = 0; i < working.length - 1; i++) {
     let span = working[i]
-    if (span.from != span.to) for (let j = i + 1; j < working.length; j++) {
-      let next = working[j]
-      if (next.from == span.from) {
-        if (next.to != span.to) {
-          if (working == spans) working = spans.slice()
-          // Followed by a partially overlapping larger span. Split that
-          // span.
-          working[j] = next.copy(next.from, span.to)
-          insertAhead(working, j + 1, next.copy(span.to, next.to))
+    if (span.from != span.to)
+      for (let j = i + 1; j < working.length; j++) {
+        let next = working[j]
+        if (next.from == span.from) {
+          if (next.to != span.to) {
+            if (working == spans) working = spans.slice()
+            // Followed by a partially overlapping larger span. Split that
+            // span.
+            working[j] = next.copy(next.from, span.to)
+            insertAhead(working, j + 1, next.copy(span.to, next.to))
+          }
+          continue
+        } else {
+          if (next.from < span.to) {
+            if (working == spans) working = spans.slice()
+            // The end of this one overlaps with a subsequent span. Split
+            // this one.
+            working[i] = span.copy(span.from, next.from)
+            insertAhead(working, j, span.copy(next.from, span.to))
+          }
+          break
         }
-        continue
-      } else {
-        if (next.from < span.to) {
-          if (working == spans) working = spans.slice()
-          // The end of this one overlaps with a subsequent span. Split
-          // this one.
-          working[i] = span.copy(span.from, next.from)
-          insertAhead(working, j, span.copy(next.from, span.to))
-        }
-        break
       }
-    }
   }
   return working
 }
@@ -783,7 +904,7 @@ function insertAhead(array: Decoration[], i: number, deco: Decoration) {
 // Get the decorations associated with the current props of a view.
 export function viewDecorations(view: EditorView): DecorationSource {
   let found: DecorationSource[] = []
-  view.someProp("decorations", f => {
+  view.someProp('decorations', f => {
     let result = f(view.state)
     if (result && result != empty) found.push(result)
   })

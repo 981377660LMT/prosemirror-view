@@ -1,24 +1,53 @@
-import {NodeSelection, EditorState, Plugin, PluginView, Transaction, Selection} from "prosemirror-state"
-import {Slice, ResolvedPos, DOMParser, DOMSerializer, Node, Mark} from "prosemirror-model"
+import {
+  NodeSelection,
+  EditorState,
+  Plugin,
+  PluginView,
+  Transaction,
+  Selection
+} from 'prosemirror-state'
+import { Slice, ResolvedPos, DOMParser, DOMSerializer, Node, Mark } from 'prosemirror-model'
 
-import {scrollRectIntoView, posAtCoords, coordsAtPos, endOfTextblock, storeScrollPos,
-        resetScrollPos, focusPreventScroll} from "./domcoords"
-import {docViewDesc, ViewDesc, NodeView, NodeViewDesc, MarkView} from "./viewdesc"
-import {initInput, destroyInput, dispatchEvent, ensureListeners, clearComposition,
-        InputState, doPaste, Dragging, findCompositionNode} from "./input"
-import {selectionToDOM, anchorInRightPlace, syncNodeSelection} from "./selection"
-import {Decoration, viewDecorations, DecorationSource} from "./decoration"
-import {DOMObserver, safariShadowSelectionRange} from "./domobserver"
-import {readDOMChange} from "./domchange"
-import {DOMSelection, DOMNode, DOMSelectionRange, deepActiveElement, clearReusedRange} from "./dom"
-import * as browser from "./browser"
+import {
+  scrollRectIntoView,
+  posAtCoords,
+  coordsAtPos,
+  endOfTextblock,
+  storeScrollPos,
+  resetScrollPos,
+  focusPreventScroll
+} from './domcoords'
+import { docViewDesc, ViewDesc, NodeView, NodeViewDesc, MarkView } from './viewdesc'
+import {
+  initInput,
+  destroyInput,
+  dispatchEvent,
+  ensureListeners,
+  clearComposition,
+  InputState,
+  doPaste,
+  Dragging,
+  findCompositionNode
+} from './input'
+import { selectionToDOM, anchorInRightPlace, syncNodeSelection } from './selection'
+import { Decoration, viewDecorations, DecorationSource } from './decoration'
+import { DOMObserver, safariShadowSelectionRange } from './domobserver'
+import { readDOMChange } from './domchange'
+import {
+  DOMSelection,
+  DOMNode,
+  DOMSelectionRange,
+  deepActiveElement,
+  clearReusedRange
+} from './dom'
+import * as browser from './browser'
 
-export {Decoration, DecorationSet, DecorationAttrs, DecorationSource} from "./decoration"
-export {NodeView, MarkView, ViewMutationRecord} from "./viewdesc"
+export { Decoration, DecorationSet, DecorationAttrs, DecorationSource } from './decoration'
+export { NodeView, MarkView, ViewMutationRecord } from './viewdesc'
 
 // Exported for testing
-import {serializeForClipboard, parseFromClipboard} from "./clipboard"
-import {endComposition} from "./input"
+import { serializeForClipboard, parseFromClipboard } from './clipboard'
+import { endComposition } from './input'
 /// @internal
 export const __parseFromClipboard = parseFromClipboard
 /// @internal
@@ -40,7 +69,7 @@ export class EditorView {
   /// @internal
   markCursor: readonly Mark[] | null = null
   /// @internal
-  cursorWrapper: {dom: DOMNode, deco: Decoration} | null = null
+  cursorWrapper: { dom: DOMNode; deco: Decoration } | null = null
   /// @internal
   nodeViews: NodeViewSet
   /// @internal
@@ -48,7 +77,7 @@ export class EditorView {
   /// @internal
   docView: NodeViewDesc
   /// @internal
-  input = new InputState
+  input = new InputState()
   private prevDirectPlugins: readonly Plugin[] = []
   private pluginViews: PluginView[] = []
   /// @internal
@@ -66,7 +95,10 @@ export class EditorView {
   /// or an object whose `mount` property holds the node to use as the
   /// document container. If it is `null`, the editor will not be
   /// added to the document.
-  constructor(place: null | DOMNode | ((editor: HTMLElement) => void) | {mount: HTMLElement}, props: DirectEditorProps) {
+  constructor(
+    place: null | DOMNode | ((editor: HTMLElement) => void) | { mount: HTMLElement },
+    props: DirectEditorProps
+  ) {
     this._props = props
     this.state = props.state
     this.directPlugins = props.plugins || []
@@ -74,19 +106,27 @@ export class EditorView {
 
     this.dispatch = this.dispatch.bind(this)
 
-    this.dom = (place && (place as {mount: HTMLElement}).mount) || document.createElement("div")
+    this.dom = (place && (place as { mount: HTMLElement }).mount) || document.createElement('div')
     if (place) {
       if ((place as DOMNode).appendChild) (place as DOMNode).appendChild(this.dom)
-      else if (typeof place == "function") place(this.dom)
-      else if ((place as {mount: HTMLElement}).mount) this.mounted = true
+      else if (typeof place == 'function') place(this.dom)
+      else if ((place as { mount: HTMLElement }).mount) this.mounted = true
     }
 
     this.editable = getEditable(this)
     updateCursorWrapper(this)
     this.nodeViews = buildNodeViews(this)
-    this.docView = docViewDesc(this.state.doc, computeDocDeco(this), viewDecorations(this), this.dom, this)
+    this.docView = docViewDesc(
+      this.state.doc,
+      computeDocDeco(this),
+      viewDecorations(this),
+      this.dom,
+      this
+    )
 
-    this.domObserver = new DOMObserver(this, (from, to, typeOver, added) => readDOMChange(this, from, to, typeOver, added))
+    this.domObserver = new DOMObserver(this, (from, to, typeOver, added) =>
+      readDOMChange(this, from, to, typeOver, added)
+    )
     this.domObserver.start()
     initInput(this)
     this.updatePluginViews()
@@ -102,12 +142,14 @@ export class EditorView {
   /// When editor content is being dragged, this object contains
   /// information about the dragged slice and whether it is being
   /// copied or moved. At any other time, it is null.
-  dragging: null | {slice: Slice, move: boolean} = null
+  dragging: null | { slice: Slice; move: boolean } = null
 
   /// Holds `true` when a
   /// [composition](https://w3c.github.io/uievents/#events-compositionevents)
   /// is active.
-  get composing() { return this.input.composing }
+  get composing() {
+    return this.input.composing
+  }
 
   /// The view's current [props](#view.EditorProps).
   get props() {
@@ -151,7 +193,9 @@ export class EditorView {
   }
 
   private updateStateInner(state: EditorState, prevProps: DirectEditorProps) {
-    let prev = this.state, redraw = false, updateSel = false
+    let prev = this.state,
+      redraw = false,
+      updateSel = false
     // When stored marks are added, stop composition, so that they can
     // be displayed.
     if (state.storedMarks && this.composing) {
@@ -160,7 +204,11 @@ export class EditorView {
     }
     this.state = state
     let pluginsChanged = prev.plugins != state.plugins || this._props.plugins != prevProps.plugins
-    if (pluginsChanged || this._props.plugins != prevProps.plugins || this._props.nodeViews != prevProps.nodeViews) {
+    if (
+      pluginsChanged ||
+      this._props.plugins != prevProps.plugins ||
+      this._props.nodeViews != prevProps.nodeViews
+    ) {
       let nodeViews = buildNodeViews(this)
       if (changedNodeViews(nodeViews, this.nodeViews)) {
         this.nodeViews = nodeViews
@@ -173,13 +221,22 @@ export class EditorView {
 
     this.editable = getEditable(this)
     updateCursorWrapper(this)
-    let innerDeco = viewDecorations(this), outerDeco = computeDocDeco(this)
+    let innerDeco = viewDecorations(this),
+      outerDeco = computeDocDeco(this)
 
-    let scroll = prev.plugins != state.plugins && !prev.doc.eq(state.doc) ? "reset"
-        : (state as any).scrollToSelection > (prev as any).scrollToSelection ? "to selection" : "preserve"
+    let scroll =
+      prev.plugins != state.plugins && !prev.doc.eq(state.doc)
+        ? 'reset'
+        : (state as any).scrollToSelection > (prev as any).scrollToSelection
+        ? 'to selection'
+        : 'preserve'
     let updateDoc = redraw || !this.docView.matchesNode(state.doc, outerDeco, innerDeco)
     if (updateDoc || !state.selection.eq(prev.selection)) updateSel = true
-    let oldScrollPos = scroll == "preserve" && updateSel && this.dom.style.overflowAnchor == null && storeScrollPos(this)
+    let oldScrollPos =
+      scroll == 'preserve' &&
+      updateSel &&
+      this.dom.style.overflowAnchor == null &&
+      storeScrollPos(this)
 
     if (updateSel) {
       this.domObserver.stop()
@@ -188,14 +245,21 @@ export class EditorView {
       // state where the thing the user sees differs from the
       // selection reported by the Selection object (#710, #973,
       // #1011, #1013, #1035).
-      let forceSelUpdate = updateDoc && (browser.ie || browser.chrome) && !this.composing &&
-          !prev.selection.empty && !state.selection.empty && selectionContextChanged(prev.selection, state.selection)
+      let forceSelUpdate =
+        updateDoc &&
+        (browser.ie || browser.chrome) &&
+        !this.composing &&
+        !prev.selection.empty &&
+        !state.selection.empty &&
+        selectionContextChanged(prev.selection, state.selection)
       if (updateDoc) {
         // If the node that the selection points into is written to,
         // Chrome sometimes starts misreporting the selection, so this
         // tracks that and forces a selection reset when our update
         // did write to the node.
-        let chromeKludge = browser.chrome ? (this.trackWrites = this.domSelectionRange().focusNode) : null
+        let chromeKludge = browser.chrome
+          ? (this.trackWrites = this.domSelectionRange().focusNode)
+          : null
         if (this.composing) this.input.compositionNode = findCompositionNode(this)
         if (redraw || !this.docView.update(state.doc, outerDeco, innerDeco, this)) {
           this.docView.updateOuterDeco(outerDeco)
@@ -208,9 +272,14 @@ export class EditorView {
       // a DOM selection change and the "selectionchange" event for it
       // can cause a spurious DOM selection update, disrupting mouse
       // drag selection.
-      if (forceSelUpdate ||
-          !(this.input.mouseDown && this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
-            anchorInRightPlace(this))) {
+      if (
+        forceSelUpdate ||
+        !(
+          this.input.mouseDown &&
+          this.domObserver.currentSelection.eq(this.domSelectionRange()) &&
+          anchorInRightPlace(this)
+        )
+      ) {
         selectionToDOM(this, forceSelUpdate)
       } else {
         syncNodeSelection(this, state.selection)
@@ -223,9 +292,9 @@ export class EditorView {
     if ((this.dragging as Dragging)?.node && !prev.doc.eq(state.doc))
       this.updateDraggedNode(this.dragging as Dragging, prev)
 
-    if (scroll == "reset") {
+    if (scroll == 'reset') {
       this.dom.scrollTop = 0
-    } else if (scroll == "to selection") {
+    } else if (scroll == 'to selection') {
       this.scrollToSelection()
     } else if (oldScrollPos) {
       resetScrollPos(oldScrollPos)
@@ -237,11 +306,12 @@ export class EditorView {
     let startDOM = this.domSelectionRange().focusNode
     if (!startDOM || !this.dom.contains(startDOM.nodeType == 1 ? startDOM : startDOM.parentNode)) {
       // Ignore selections outside the editor
-    } else if (this.someProp("handleScrollToSelection", f => f(this))) {
+    } else if (this.someProp('handleScrollToSelection', f => f(this))) {
       // Handled
     } else if (this.state.selection instanceof NodeSelection) {
       let target = this.docView.domAfterPos(this.state.selection.from)
-      if (target.nodeType == 1) scrollRectIntoView(this, (target as HTMLElement).getBoundingClientRect(), startDOM)
+      if (target.nodeType == 1)
+        scrollRectIntoView(this, (target as HTMLElement).getBoundingClientRect(), startDOM)
     } else {
       scrollRectIntoView(this, this.coordsAtPos(this.state.selection.head, 1), startDOM)
     }
@@ -249,11 +319,15 @@ export class EditorView {
 
   private destroyPluginViews() {
     let view
-    while (view = this.pluginViews.pop()) if (view.destroy) view.destroy()
+    while ((view = this.pluginViews.pop())) if (view.destroy) view.destroy()
   }
 
   private updatePluginViews(prevState?: EditorState) {
-    if (!prevState || prevState.plugins != this.state.plugins || this.directPlugins != this.prevDirectPlugins) {
+    if (
+      !prevState ||
+      prevState.plugins != this.state.plugins ||
+      this.directPlugins != this.prevDirectPlugins
+    ) {
       this.prevDirectPlugins = this.directPlugins
       this.destroyPluginViews()
       for (let i = 0; i < this.directPlugins.length; i++) {
@@ -273,7 +347,8 @@ export class EditorView {
   }
 
   private updateDraggedNode(dragging: Dragging, prev: EditorState) {
-    let sel = dragging.node!, found = -1
+    let sel = dragging.node!,
+      found = -1
     if (this.state.doc.nodeAt(sel.from) == sel.node) {
       found = sel.from
     } else {
@@ -281,8 +356,11 @@ export class EditorView {
       let moved = movedPos > 0 && this.state.doc.nodeAt(movedPos)
       if (moved == sel.node) found = movedPos
     }
-    this.dragging = new Dragging(dragging.slice, dragging.move,
-                                 found < 0 ? undefined : NodeSelection.create(this.state.doc, found))
+    this.dragging = new Dragging(
+      dragging.slice,
+      dragging.move,
+      found < 0 ? undefined : NodeSelection.create(this.state.doc, found)
+    )
   }
 
   /// Goes over the values of a prop, first those provided directly,
@@ -295,22 +373,26 @@ export class EditorView {
     propName: PropName,
     f: (value: NonNullable<EditorProps[PropName]>) => Result
   ): Result | undefined
-  someProp<PropName extends keyof EditorProps>(propName: PropName): NonNullable<EditorProps[PropName]> | undefined
+  someProp<PropName extends keyof EditorProps>(
+    propName: PropName
+  ): NonNullable<EditorProps[PropName]> | undefined
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
     f?: (value: NonNullable<EditorProps[PropName]>) => Result
   ): Result | undefined {
-    let prop = this._props && this._props[propName], value
+    let prop = this._props && this._props[propName],
+      value
     if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
     for (let i = 0; i < this.directPlugins.length; i++) {
       let prop = this.directPlugins[i].props[propName]
       if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
     }
     let plugins = this.state.plugins
-    if (plugins) for (let i = 0; i < plugins.length; i++) {
-      let prop = plugins[i].props[propName]
-      if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
-    }
+    if (plugins)
+      for (let i = 0; i < plugins.length; i++) {
+        let prop = plugins[i].props[propName]
+        if (prop != null && (value = f ? f(prop as any) : prop)) return value as any
+      }
   }
 
   /// Query whether the view has focus.
@@ -347,13 +429,15 @@ export class EditorView {
   /// root if the editor is inside one.
   get root(): Document | ShadowRoot {
     let cached = this._root
-    if (cached == null) for (let search = this.dom.parentNode; search; search = search.parentNode) {
-      if (search.nodeType == 9 || (search.nodeType == 11 && (search as any).host)) {
-        if (!(search as any).getSelection)
-          Object.getPrototypeOf(search).getSelection = () => (search as DOMNode).ownerDocument!.getSelection()
-        return this._root = search as Document | ShadowRoot
+    if (cached == null)
+      for (let search = this.dom.parentNode; search; search = search.parentNode) {
+        if (search.nodeType == 9 || (search.nodeType == 11 && (search as any).host)) {
+          if (!(search as any).getSelection)
+            Object.getPrototypeOf(search).getSelection = () =>
+              (search as DOMNode).ownerDocument!.getSelection()
+          return (this._root = search as Document | ShadowRoot)
+        }
       }
-    }
     return cached || document
   }
 
@@ -370,7 +454,7 @@ export class EditorView {
   /// coordinates, and its `inside` property holds the position of the
   /// inner node that the position falls inside of, or -1 if it is at
   /// the top level, not in any node.
-  posAtCoords(coords: {left: number, top: number}): {pos: number, inside: number} | null {
+  posAtCoords(coords: { left: number; top: number }): { pos: number; inside: number } | null {
     return posAtCoords(this, coords)
   }
 
@@ -380,7 +464,7 @@ export class EditorView {
   /// that aren't directly adjacent, `side` determines which element
   /// is used. When < 0, the element before the position is used,
   /// otherwise the element after.
-  coordsAtPos(pos: number, side = 1): {left: number, right: number, top: number, bottom: number} {
+  coordsAtPos(pos: number, side = 1): { left: number; right: number; top: number; bottom: number } {
     return coordsAtPos(this, pos, side)
   }
 
@@ -392,7 +476,7 @@ export class EditorView {
   ///
   /// Note that you should **not** mutate the editor's internal DOM,
   /// only inspect it (and even that is usually not necessary).
-  domAtPos(pos: number, side = 0): {node: DOMNode, offset: number} {
+  domAtPos(pos: number, side = 0): { node: DOMNode; offset: number } {
     return this.docView.domFromPos(pos, side)
   }
 
@@ -419,7 +503,7 @@ export class EditorView {
   /// node to use when the position is inside a leaf node.
   posAtDOM(node: DOMNode, offset: number, bias = -1): number {
     let pos = this.docView.posFromDOM(node, offset, bias)
-    if (pos == null) throw new RangeError("DOM position not inside the editor")
+    if (pos == null) throw new RangeError('DOM position not inside the editor')
     return pos
   }
 
@@ -429,7 +513,10 @@ export class EditorView {
   /// position would leave that position's parent textblock. Will apply
   /// to the view's current state by default, but it is possible to
   /// pass a different state.
-  endOfTextblock(dir: "up" | "down" | "left" | "right" | "forward" | "backward", state?: EditorState): boolean {
+  endOfTextblock(
+    dir: 'up' | 'down' | 'left' | 'right' | 'forward' | 'backward',
+    state?: EditorState
+  ): boolean {
     return endOfTextblock(this, state || this.state, dir)
   }
 
@@ -437,12 +524,12 @@ export class EditorView {
   /// `event`, if given, will be passed to the
   /// [`handlePaste`](#view.EditorProps.handlePaste) hook.
   pasteHTML(html: string, event?: ClipboardEvent) {
-    return doPaste(this, "", html, false, event || new ClipboardEvent("paste"))
+    return doPaste(this, '', html, false, event || new ClipboardEvent('paste'))
   }
 
   /// Run the editor's paste logic with the given plain-text input.
   pasteText(text: string, event?: ClipboardEvent) {
-    return doPaste(this, text, null, true, event || new ClipboardEvent("paste"))
+    return doPaste(this, text, null, true, event || new ClipboardEvent('paste'))
   }
 
   /// Serialize the given slice as it would be if it was copied from
@@ -451,7 +538,7 @@ export class EditorView {
   /// representation, and the transformed slice (which can be
   /// different from the given input due to hooks like
   /// [`transformCopied`](#view.EditorProps.transformCopied)).
-  serializeForClipboard(slice: Slice): {dom: HTMLElement, text: string, slice: Slice} {
+  serializeForClipboard(slice: Slice): { dom: HTMLElement; text: string; slice: Slice } {
     return serializeForClipboard(this, slice)
   }
 
@@ -463,13 +550,13 @@ export class EditorView {
     this.destroyPluginViews()
     if (this.mounted) {
       this.docView.update(this.state.doc, [], viewDecorations(this), this)
-      this.dom.textContent = ""
+      this.dom.textContent = ''
     } else if (this.dom.parentNode) {
       this.dom.parentNode.removeChild(this.dom)
     }
     this.docView.destroy()
     ;(this as any).docView = null
-    clearReusedRange();
+    clearReusedRange()
   }
 
   /// This is true when the view has been
@@ -496,9 +583,14 @@ export class EditorView {
   /// @internal
   domSelectionRange(): DOMSelectionRange {
     let sel = this.domSelection()
-    if (!sel) return {focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0}
-    return browser.safari && this.root.nodeType === 11 &&
-      deepActiveElement(this.dom.ownerDocument) == this.dom && safariShadowSelectionRange(this, sel) || sel
+    if (!sel) return { focusNode: null, focusOffset: 0, anchorNode: null, anchorOffset: 0 }
+    return (
+      (browser.safari &&
+        this.root.nodeType === 11 &&
+        deepActiveElement(this.dom.ownerDocument) == this.dom &&
+        safariShadowSelectionRange(this, sel)) ||
+      sel
+    )
   }
 
   /// @internal
@@ -507,7 +599,7 @@ export class EditorView {
   }
 }
 
-EditorView.prototype.dispatch = function(tr: Transaction) {
+EditorView.prototype.dispatch = function (tr: Transaction) {
   let dispatchTransaction = this._props.dispatchTransaction
   if (dispatchTransaction) dispatchTransaction.call(this, tr)
   else this.updateState(this.state.apply(tr))
@@ -515,40 +607,44 @@ EditorView.prototype.dispatch = function(tr: Transaction) {
 
 function computeDocDeco(view: EditorView) {
   let attrs = Object.create(null)
-  attrs.class = "ProseMirror"
+  attrs.class = 'ProseMirror'
   attrs.contenteditable = String(view.editable)
 
-  view.someProp("attributes", value => {
-    if (typeof value == "function") value = value(view.state)
-    if (value) for (let attr in value) {
-      if (attr == "class")
-        attrs.class += " " + value[attr]
-      else if (attr == "style")
-        attrs.style = (attrs.style ? attrs.style + ";" : "") + value[attr]
-      else if (!attrs[attr] && attr != "contenteditable" && attr != "nodeName")
-        attrs[attr] = String(value[attr])
-    }
+  view.someProp('attributes', value => {
+    if (typeof value == 'function') value = value(view.state)
+    if (value)
+      for (let attr in value) {
+        if (attr == 'class') attrs.class += ' ' + value[attr]
+        else if (attr == 'style') attrs.style = (attrs.style ? attrs.style + ';' : '') + value[attr]
+        else if (!attrs[attr] && attr != 'contenteditable' && attr != 'nodeName')
+          attrs[attr] = String(value[attr])
+      }
   })
-  if (!attrs.translate) attrs.translate = "no"
+  if (!attrs.translate) attrs.translate = 'no'
 
   return [Decoration.node(0, view.state.doc.content.size, attrs)]
 }
 
 function updateCursorWrapper(view: EditorView) {
   if (view.markCursor) {
-    let dom = document.createElement("img")
-    dom.className = "ProseMirror-separator"
-    dom.setAttribute("mark-placeholder", "true")
-    dom.setAttribute("alt", "")
-    view.cursorWrapper = {dom, deco: Decoration.widget(view.state.selection.from,
-                                                       dom, {raw: true, marks: view.markCursor} as any)}
+    let dom = document.createElement('img')
+    dom.className = 'ProseMirror-separator'
+    dom.setAttribute('mark-placeholder', 'true')
+    dom.setAttribute('alt', '')
+    view.cursorWrapper = {
+      dom,
+      deco: Decoration.widget(view.state.selection.from, dom, {
+        raw: true,
+        marks: view.markCursor
+      } as any)
+    }
   } else {
     view.cursorWrapper = null
   }
 }
 
 function getEditable(view: EditorView) {
-  return !view.someProp("editable", value => value(view.state) === false)
+  return !view.someProp('editable', value => value(view.state) === false)
 }
 
 function selectionContextChanged(sel1: Selection, sel2: Selection) {
@@ -559,16 +655,17 @@ function selectionContextChanged(sel1: Selection, sel2: Selection) {
 function buildNodeViews(view: EditorView) {
   let result: NodeViewSet = Object.create(null)
   function add(obj: NodeViewSet) {
-    for (let prop in obj) if (!Object.prototype.hasOwnProperty.call(result, prop))
-      result[prop] = obj[prop]
+    for (let prop in obj)
+      if (!Object.prototype.hasOwnProperty.call(result, prop)) result[prop] = obj[prop]
   }
-  view.someProp("nodeViews", add)
-  view.someProp("markViews", add)
+  view.someProp('nodeViews', add)
+  view.someProp('markViews', add)
   return result
 }
 
 function changedNodeViews(a: NodeViewSet, b: NodeViewSet) {
-  let nA = 0, nB = 0
+  let nA = 0,
+    nB = 0
   for (let prop in a) {
     if (a[prop] != b[prop]) return true
     nA++
@@ -579,19 +676,24 @@ function changedNodeViews(a: NodeViewSet, b: NodeViewSet) {
 
 function checkStateComponent(plugin: Plugin) {
   if (plugin.spec.state || plugin.spec.filterTransaction || plugin.spec.appendTransaction)
-    throw new RangeError("Plugins passed directly to the view must not have a state component")
+    throw new RangeError('Plugins passed directly to the view must not have a state component')
 }
 
 /// The type of function [provided](#view.EditorProps.nodeViews) to
 /// create [node views](#view.NodeView).
-export type NodeViewConstructor = (node: Node, view: EditorView, getPos: () => number | undefined,
-                                   decorations: readonly Decoration[], innerDecorations: DecorationSource) => NodeView
+export type NodeViewConstructor = (
+  node: Node,
+  view: EditorView,
+  getPos: () => number | undefined,
+  decorations: readonly Decoration[],
+  innerDecorations: DecorationSource
+) => NodeView
 
 /// The function types [used](#view.EditorProps.markViews) to create
 /// mark views.
 export type MarkViewConstructor = (mark: Mark, view: EditorView, inline: boolean) => MarkView
 
-type NodeViewSet = {[name: string]: NodeViewConstructor | MarkViewConstructor}
+type NodeViewSet = { [name: string]: NodeViewConstructor | MarkViewConstructor }
 
 /// Helper type that maps event names to event object types, but
 /// includes events that TypeScript's HTMLElementEventMap doesn't know
@@ -626,7 +728,11 @@ export interface EditorProps<P = any> {
   /// `preventDefault` yourself (or not, if you want to allow the
   /// default behavior).
   handleDOMEvents?: {
-    [event in keyof DOMEventMap]?: (this: P, view: EditorView, event: DOMEventMap[event]) => boolean | void
+    [event in keyof DOMEventMap]?: (
+      this: P,
+      view: EditorView,
+      event: DOMEventMap[event]
+    ) => boolean | void
   }
 
   /// Called when the editor receives a `keydown` event.
@@ -638,24 +744,55 @@ export interface EditorProps<P = any> {
   /// Whenever the user directly input text, this handler is called
   /// before the input is applied. If it returns `true`, the default
   /// behavior of actually inserting the text is suppressed.
-  handleTextInput?: (this: P, view: EditorView, from: number, to: number, text: string, deflt: () => Transaction) => boolean | void
+  handleTextInput?: (
+    this: P,
+    view: EditorView,
+    from: number,
+    to: number,
+    text: string,
+    deflt: () => Transaction
+  ) => boolean | void
 
   /// Called for each node around a click, from the inside out. The
   /// `direct` flag will be true for the inner node.
-  handleClickOn?: (this: P, view: EditorView, pos: number, node: Node, nodePos: number, event: MouseEvent, direct: boolean) => boolean | void
+  handleClickOn?: (
+    this: P,
+    view: EditorView,
+    pos: number,
+    node: Node,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => boolean | void
 
   /// Called when the editor is clicked, after `handleClickOn` handlers
   /// have been called.
   handleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void
 
   /// Called for each node around a double click.
-  handleDoubleClickOn?: (this: P, view: EditorView, pos: number, node: Node, nodePos: number, event: MouseEvent, direct: boolean) => boolean | void
+  handleDoubleClickOn?: (
+    this: P,
+    view: EditorView,
+    pos: number,
+    node: Node,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => boolean | void
 
   /// Called when the editor is double-clicked, after `handleDoubleClickOn`.
   handleDoubleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void
 
   /// Called for each node around a triple click.
-  handleTripleClickOn?: (this: P, view: EditorView, pos: number, node: Node, nodePos: number, event: MouseEvent, direct: boolean) => boolean | void
+  handleTripleClickOn?: (
+    this: P,
+    view: EditorView,
+    pos: number,
+    node: Node,
+    nodePos: number,
+    event: MouseEvent,
+    direct: boolean
+  ) => boolean | void
 
   /// Called when the editor is triple-clicked, after `handleTripleClickOn`.
   handleTripleClick?: (this: P, view: EditorView, pos: number, event: MouseEvent) => boolean | void
@@ -668,7 +805,13 @@ export interface EditorProps<P = any> {
   /// Called when something is dropped on the editor. `moved` will be
   /// true if this drop moves from the current selection (which should
   /// thus be deleted).
-  handleDrop?: (this: P, view: EditorView, event: DragEvent, slice: Slice, moved: boolean) => boolean | void
+  handleDrop?: (
+    this: P,
+    view: EditorView,
+    event: DragEvent,
+    slice: Slice,
+    moved: boolean
+  ) => boolean | void
 
   /// Called when the view, after updating its state, tries to scroll
   /// the selection into view. A handler function may return false to
@@ -683,7 +826,12 @@ export interface EditorProps<P = any> {
 
   /// Can be used to override the way a selection is created when
   /// reading a DOM selection between the given anchor and head.
-  createSelectionBetween?: (this: P, view: EditorView, anchor: ResolvedPos, head: ResolvedPos) => Selection | null
+  createSelectionBetween?: (
+    this: P,
+    view: EditorView,
+    anchor: ResolvedPos,
+    head: ResolvedPos
+  ) => Selection | null
 
   /// The [parser](#model.DOMParser) to use when reading editor changes
   /// from the DOM. Defaults to calling
@@ -711,7 +859,13 @@ export interface EditorProps<P = any> {
   /// in `<p>` tags, and call
   /// [`clipboardParser`](#view.EditorProps.clipboardParser) on it.
   /// The `plain` flag will be true when the text is pasted as plain text.
-  clipboardTextParser?: (this: P, text: string, $context: ResolvedPos, plain: boolean, view: EditorView) => Slice
+  clipboardTextParser?: (
+    this: P,
+    text: string,
+    $context: ResolvedPos,
+    plain: boolean,
+    view: EditorView
+  ) => Slice
 
   /// Can be used to transform pasted or dragged-and-dropped content
   /// before it is applied to the document.
@@ -746,14 +900,14 @@ export interface EditorProps<P = any> {
   /// (For backwards compatibility reasons, [mark
   /// views](#view.EditorProps.markViews) can also be included in this
   /// object.)
-  nodeViews?: {[node: string]: NodeViewConstructor}
+  nodeViews?: { [node: string]: NodeViewConstructor }
 
   /// Pass custom mark rendering functions. Note that these cannot
   /// provide the kind of dynamic behavior that [node
   /// views](#view.NodeView) can—they just provide custom rendering
   /// logic. The third argument indicates whether the mark's content
   /// is inline.
-  markViews?: {[mark: string]: MarkViewConstructor}
+  markViews?: { [mark: string]: MarkViewConstructor }
 
   /// The DOM serializer to use when putting content onto the
   /// clipboard. If not given, the result of
@@ -786,16 +940,16 @@ export interface EditorProps<P = any> {
   /// provided here will be added to the class. For other attributes,
   /// the value provided first (as in
   /// [`someProp`](#view.EditorView.someProp)) will be used.
-  attributes?: {[name: string]: string} | ((state: EditorState) => {[name: string]: string})
+  attributes?: { [name: string]: string } | ((state: EditorState) => { [name: string]: string })
 
   /// Determines the distance (in pixels) between the cursor and the
   /// end of the visible viewport at which point, when scrolling the
   /// cursor into view, scrolling takes place. Defaults to 0.
-  scrollThreshold?: number | {top: number, right: number, bottom: number, left: number}
+  scrollThreshold?: number | { top: number; right: number; bottom: number; left: number }
 
   /// Determines the extra space (in pixels) that is left above or
   /// below the cursor when it is scrolled into view. Defaults to 5.
-  scrollMargin?: number | {top: number, right: number, bottom: number, left: number}
+  scrollMargin?: number | { top: number; right: number; bottom: number; left: number }
 }
 
 /// The props object given directly to the editor view supports some

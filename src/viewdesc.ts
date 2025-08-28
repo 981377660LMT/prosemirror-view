@@ -1,15 +1,15 @@
-import {DOMSerializer, Fragment, Mark, Node, TagParseRule} from "prosemirror-model"
-import {TextSelection} from "prosemirror-state"
+import { DOMSerializer, Fragment, Mark, Node, TagParseRule } from 'prosemirror-model'
+import { TextSelection } from 'prosemirror-state'
 
-import {domIndex, isEquivalentPosition, DOMNode} from "./dom"
-import * as browser from "./browser"
-import {Decoration, DecorationSource, WidgetConstructor, WidgetType, NodeType} from "./decoration"
-import {EditorView} from "./index"
+import { domIndex, isEquivalentPosition, DOMNode } from './dom'
+import * as browser from './browser'
+import { Decoration, DecorationSource, WidgetConstructor, WidgetType, NodeType } from './decoration'
+import { EditorView } from './index'
 
 declare global {
-  interface Node { 
+  interface Node {
     /// @internal
-    pmViewDesc?: ViewDesc 
+    pmViewDesc?: ViewDesc
   }
 }
 
@@ -18,7 +18,7 @@ declare global {
 /// or a selection change happens within the view. When the change is
 /// a selection change, the record will have a `type` property of
 /// `"selection"` (which doesn't occur for native mutation records).
-export type ViewMutationRecord = MutationRecord | { type: "selection", target: DOMNode }
+export type ViewMutationRecord = MutationRecord | { type: 'selection'; target: DOMNode }
 
 /// By default, document nodes are rendered using the result of the
 /// [`toDOM`](#model.NodeSpec.toDOM) method of their spec, and managed
@@ -50,7 +50,11 @@ export interface NodeView {
   /// to that node, and false otherwise. If the node view has a
   /// `contentDOM` property (or no `dom` property), updating its child
   /// nodes will be handled by ProseMirror.
-  update?: (node: Node, decorations: readonly Decoration[], innerDecorations: DecorationSource) => boolean
+  update?: (
+    node: Node,
+    decorations: readonly Decoration[],
+    innerDecorations: DecorationSource
+  ) => boolean
 
   /// By default, `update` will only be called when a node of the same
   /// node type appears in this view's position. When you set this to
@@ -110,7 +114,6 @@ export interface MarkView {
   /// the range around the mutation, true if it can safely be ignored.
   ignoreMutation?: (mutation: ViewMutationRecord) => boolean
 
-  
   /// Called when the mark view is removed from the editor or the whole
   /// editor is destroyed.
   destroy?: () => void
@@ -129,7 +132,10 @@ export interface MarkView {
 //
 // They form a doubly-linked mutable tree, starting at `view.docView`.
 
-const NOT_DIRTY = 0, CHILD_DIRTY = 1, CONTENT_DIRTY = 2, NODE_DIRTY = 3
+const NOT_DIRTY = 0,
+  CHILD_DIRTY = 1,
+  CONTENT_DIRTY = 2,
+  NODE_DIRTY = 3
 
 // Superclass for the various kinds of descriptions. Defines their
 // basic structure and shared methods.
@@ -152,19 +158,31 @@ export class ViewDesc {
 
   // Used to check whether a given description corresponds to a
   // widget/mark/node.
-  matchesWidget(widget: Decoration) { return false }
-  matchesMark(mark: Mark) { return false }
-  matchesNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource) { return false }
-  matchesHack(nodeName: string) { return false }
+  matchesWidget(widget: Decoration) {
+    return false
+  }
+  matchesMark(mark: Mark) {
+    return false
+  }
+  matchesNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource) {
+    return false
+  }
+  matchesHack(nodeName: string) {
+    return false
+  }
 
   // When parsing in-editor content (in domchange.js), we allow
   // descriptions to determine the parse rules that should be used to
   // parse them.
-  parseRule(): Omit<TagParseRule, "tag"> | null { return null }
+  parseRule(): Omit<TagParseRule, 'tag'> | null {
+    return null
+  }
 
   // Used by the editor's event handler to ignore events that come
   // from certain descs.
-  stopEvent(event: Event) { return false }
+  stopEvent(event: Event) {
+    return false
+  }
 
   // The size of the content represented by this desc.
   get size() {
@@ -175,17 +193,18 @@ export class ViewDesc {
 
   // For block nodes, this represents the space taken up by their
   // start/end tokens.
-  get border() { return 0 }
+  get border() {
+    return 0
+  }
 
   destroy() {
     this.parent = undefined
     if (this.dom.pmViewDesc == this) this.dom.pmViewDesc = undefined
-    for (let i = 0; i < this.children.length; i++)
-      this.children[i].destroy()
+    for (let i = 0; i < this.children.length; i++) this.children[i].destroy()
   }
 
   posBeforeChild(child: ViewDesc): number {
-    for (let i = 0, pos = this.posAtStart;; i++) {
+    for (let i = 0, pos = this.posAtStart; ; i++) {
       let cur = this.children[i]
       if (cur == child) return pos
       pos += cur.size
@@ -220,7 +239,8 @@ export class ViewDesc {
           while (dom.parentNode != this.contentDOM) dom = dom.parentNode!
           domBefore = dom.previousSibling
         }
-        while (domBefore && !((desc = domBefore.pmViewDesc) && desc.parent == this)) domBefore = domBefore.previousSibling
+        while (domBefore && !((desc = domBefore.pmViewDesc) && desc.parent == this))
+          domBefore = domBefore.previousSibling
         return domBefore ? this.posBeforeChild(desc!) + desc!.size : this.posAtStart
       } else {
         let domAfter, desc: ViewDesc | undefined
@@ -230,7 +250,8 @@ export class ViewDesc {
           while (dom.parentNode != this.contentDOM) dom = dom.parentNode!
           domAfter = dom.nextSibling
         }
-        while (domAfter && !((desc = domAfter.pmViewDesc) && desc.parent == this)) domAfter = domAfter.nextSibling
+        while (domAfter && !((desc = domAfter.pmViewDesc) && desc.parent == this))
+          domAfter = domAfter.nextSibling
         return domAfter ? this.posBeforeChild(desc!) : this.posAtEnd
       }
     }
@@ -240,17 +261,29 @@ export class ViewDesc {
     let atEnd
     if (dom == this.dom && this.contentDOM) {
       atEnd = offset > domIndex(this.contentDOM)
-    } else if (this.contentDOM && this.contentDOM != this.dom && this.dom.contains(this.contentDOM)) {
+    } else if (
+      this.contentDOM &&
+      this.contentDOM != this.dom &&
+      this.dom.contains(this.contentDOM)
+    ) {
       atEnd = dom.compareDocumentPosition(this.contentDOM) & 2
     } else if (this.dom.firstChild) {
-      if (offset == 0) for (let search = dom;; search = search.parentNode!) {
-        if (search == this.dom) { atEnd = false; break }
-        if (search.previousSibling) break
-      }
-      if (atEnd == null && offset == dom.childNodes.length) for (let search = dom;; search = search.parentNode!) {
-        if (search == this.dom) { atEnd = true; break }
-        if (search.nextSibling) break
-      }
+      if (offset == 0)
+        for (let search = dom; ; search = search.parentNode!) {
+          if (search == this.dom) {
+            atEnd = false
+            break
+          }
+          if (search.previousSibling) break
+        }
+      if (atEnd == null && offset == dom.childNodes.length)
+        for (let search = dom; ; search = search.parentNode!) {
+          if (search == this.dom) {
+            atEnd = true
+            break
+          }
+          if (search.nextSibling) break
+        }
     }
     return (atEnd == null ? bias > 0 : atEnd) ? this.posAtEnd : this.posAtStart
   }
@@ -261,14 +294,19 @@ export class ViewDesc {
   nearestDesc(dom: DOMNode, onlyNodes: true): NodeViewDesc | undefined
   nearestDesc(dom: DOMNode, onlyNodes: boolean = false) {
     for (let first = true, cur: DOMNode | null = dom; cur; cur = cur.parentNode) {
-      let desc = this.getDesc(cur), nodeDOM
+      let desc = this.getDesc(cur),
+        nodeDOM
       if (desc && (!onlyNodes || desc.node)) {
         // If dom is outside of this desc's nodeDOM, don't count it.
-        if (first && (nodeDOM = (desc as NodeViewDesc).nodeDOM) &&
-            !(nodeDOM.nodeType == 1 ? nodeDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode) : nodeDOM == dom))
+        if (
+          first &&
+          (nodeDOM = (desc as NodeViewDesc).nodeDOM) &&
+          !(nodeDOM.nodeType == 1
+            ? nodeDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode)
+            : nodeDOM == dom)
+        )
           first = false
-        else
-          return desc
+        else return desc
       }
     }
   }
@@ -290,12 +328,16 @@ export class ViewDesc {
   // parent node overrode rendering, there might not be one.)
   descAt(pos: number): ViewDesc | undefined {
     for (let i = 0, offset = 0; i < this.children.length; i++) {
-      let child = this.children[i], end = offset + child.size
+      let child = this.children[i],
+        end = offset + child.size
       if (offset == pos && end != offset) {
         while (!child.border && child.children.length) {
           for (let i = 0; i < child.children.length; i++) {
             let inner = child.children[i]
-            if (inner.size) { child = inner; break }
+            if (inner.size) {
+              child = inner
+              break
+            }
           }
         }
         return child
@@ -305,55 +347,85 @@ export class ViewDesc {
     }
   }
 
-  domFromPos(pos: number, side: number): {node: DOMNode, offset: number, atom?: number} {
-    if (!this.contentDOM) return {node: this.dom, offset: 0, atom: pos + 1}
+  domFromPos(pos: number, side: number): { node: DOMNode; offset: number; atom?: number } {
+    if (!this.contentDOM) return { node: this.dom, offset: 0, atom: pos + 1 }
     // First find the position in the child array
-    let i = 0, offset = 0
+    let i = 0,
+      offset = 0
     for (let curPos = 0; i < this.children.length; i++) {
-      let child = this.children[i], end = curPos + child.size
-      if (end > pos || child instanceof TrailingHackViewDesc) { offset = pos - curPos; break }
+      let child = this.children[i],
+        end = curPos + child.size
+      if (end > pos || child instanceof TrailingHackViewDesc) {
+        offset = pos - curPos
+        break
+      }
       curPos = end
     }
     // If this points into the middle of a child, call through
     if (offset) return this.children[i].domFromPos(offset - this.children[i].border, side)
     // Go back if there were any zero-length widgets with side >= 0 before this point
-    for (let prev; i && !(prev = this.children[i - 1]).size && prev instanceof WidgetViewDesc && prev.side >= 0; i--) {}
+    for (
+      let prev;
+      i && !(prev = this.children[i - 1]).size && prev instanceof WidgetViewDesc && prev.side >= 0;
+      i--
+    ) {}
     // Scan towards the first useable node
     if (side <= 0) {
-      let prev, enter = true
-      for (;; i--, enter = false) {
+      let prev,
+        enter = true
+      for (; ; i--, enter = false) {
         prev = i ? this.children[i - 1] : null
         if (!prev || prev.dom.parentNode == this.contentDOM) break
       }
-      if (prev && side && enter && !prev.border && !prev.domAtom) return prev.domFromPos(prev.size, side)
-      return {node: this.contentDOM, offset: prev ? domIndex(prev.dom) + 1 : 0}
+      if (prev && side && enter && !prev.border && !prev.domAtom)
+        return prev.domFromPos(prev.size, side)
+      return { node: this.contentDOM, offset: prev ? domIndex(prev.dom) + 1 : 0 }
     } else {
-      let next, enter = true
-      for (;; i++, enter = false) {
+      let next,
+        enter = true
+      for (; ; i++, enter = false) {
         next = i < this.children.length ? this.children[i] : null
         if (!next || next.dom.parentNode == this.contentDOM) break
       }
       if (next && enter && !next.border && !next.domAtom) return next.domFromPos(0, side)
-      return {node: this.contentDOM, offset: next ? domIndex(next.dom) : this.contentDOM.childNodes.length}
+      return {
+        node: this.contentDOM,
+        offset: next ? domIndex(next.dom) : this.contentDOM.childNodes.length
+      }
     }
   }
 
   // Used to find a DOM range in a single parent for a given changed
   // range.
   parseRange(
-    from: number, to: number, base = 0
-  ): {node: DOMNode, from: number, to: number, fromOffset: number, toOffset: number} {
+    from: number,
+    to: number,
+    base = 0
+  ): { node: DOMNode; from: number; to: number; fromOffset: number; toOffset: number } {
     if (this.children.length == 0)
-      return {node: this.contentDOM!, from, to, fromOffset: 0, toOffset: this.contentDOM!.childNodes.length}
+      return {
+        node: this.contentDOM!,
+        from,
+        to,
+        fromOffset: 0,
+        toOffset: this.contentDOM!.childNodes.length
+      }
 
-    let fromOffset = -1, toOffset = -1
-    for (let offset = base, i = 0;; i++) {
-      let child = this.children[i], end = offset + child.size
+    let fromOffset = -1,
+      toOffset = -1
+    for (let offset = base, i = 0; ; i++) {
+      let child = this.children[i],
+        end = offset + child.size
       if (fromOffset == -1 && from <= end) {
         let childBase = offset + child.border
         // FIXME maybe descend mark views to parse a narrower range?
-        if (from >= childBase && to <= end - child.border && child.node &&
-            child.contentDOM && this.contentDOM!.contains(child.contentDOM))
+        if (
+          from >= childBase &&
+          to <= end - child.border &&
+          child.node &&
+          child.contentDOM &&
+          this.contentDOM!.contains(child.contentDOM)
+        )
           return child.parseRange(from, to, childBase)
 
         from = offset
@@ -382,7 +454,7 @@ export class ViewDesc {
       }
       offset = end
     }
-    return {node: this.contentDOM!, from, to, fromOffset, toOffset}
+    return { node: this.contentDOM!, from, to, fromOffset, toOffset }
   }
 
   emptyChildAt(side: number): boolean {
@@ -392,9 +464,9 @@ export class ViewDesc {
   }
 
   domAfterPos(pos: number): DOMNode {
-    let {node, offset} = this.domFromPos(pos, 0)
+    let { node, offset } = this.domFromPos(pos, 0)
     if (node.nodeType != 1 || offset == node.childNodes.length)
-      throw new RangeError("No node after pos " + pos)
+      throw new RangeError('No node after pos ' + pos)
     return node.childNodes[offset]
   }
 
@@ -405,11 +477,18 @@ export class ViewDesc {
   // case we just use whatever domFromPos produces as a best effort.
   setSelection(anchor: number, head: number, view: EditorView, force = false): void {
     // If the selection falls entirely in a child, give it to that child
-    let from = Math.min(anchor, head), to = Math.max(anchor, head)
+    let from = Math.min(anchor, head),
+      to = Math.max(anchor, head)
     for (let i = 0, offset = 0; i < this.children.length; i++) {
-      let child = this.children[i], end = offset + child.size
+      let child = this.children[i],
+        end = offset + child.size
       if (from > offset && to < end)
-        return child.setSelection(anchor - offset - child.border, head - offset - child.border, view, force)
+        return child.setSelection(
+          anchor - offset - child.border,
+          head - offset - child.border,
+          view,
+          force
+        )
       offset = end
     }
 
@@ -424,15 +503,15 @@ export class ViewDesc {
     // the cursor sometimes inexplicable visually lags behind its
     // reported position in such situations (#1092).
     if ((browser.gecko || browser.safari) && anchor == head) {
-      let {node, offset} = anchorDOM
+      let { node, offset } = anchorDOM
       if (node.nodeType == 3) {
-        brKludge = !!(offset && node.nodeValue![offset - 1] == "\n")
+        brKludge = !!(offset && node.nodeValue![offset - 1] == '\n')
         // Issue #1128
         if (brKludge && offset == node.nodeValue!.length) {
-           for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
-            if (after = scan.nextSibling) {
-              if (after.nodeName == "BR")
-                anchorDOM = headDOM = {node: after.parentNode!, offset: domIndex(after) + 1}
+          for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
+            if ((after = scan.nextSibling)) {
+              if (after.nodeName == 'BR')
+                anchorDOM = headDOM = { node: after.parentNode!, offset: domIndex(after) + 1 }
               break
             }
             let desc = scan.pmViewDesc
@@ -441,19 +520,32 @@ export class ViewDesc {
         }
       } else {
         let prev = node.childNodes[offset - 1]
-        brKludge = prev && (prev.nodeName == "BR" || (prev as HTMLElement).contentEditable == "false")
+        brKludge =
+          prev && (prev.nodeName == 'BR' || (prev as HTMLElement).contentEditable == 'false')
       }
     }
     // Firefox can act strangely when the selection is in front of an
     // uneditable node. See #1163 and https://bugzilla.mozilla.org/show_bug.cgi?id=1709536
-    if (browser.gecko && selRange.focusNode && selRange.focusNode != headDOM.node && selRange.focusNode.nodeType == 1) {
+    if (
+      browser.gecko &&
+      selRange.focusNode &&
+      selRange.focusNode != headDOM.node &&
+      selRange.focusNode.nodeType == 1
+    ) {
       let after = selRange.focusNode.childNodes[selRange.focusOffset]
-      if (after && (after as HTMLElement).contentEditable == "false") force = true
+      if (after && (after as HTMLElement).contentEditable == 'false') force = true
     }
 
-    if (!(force || brKludge && browser.safari) &&
-        isEquivalentPosition(anchorDOM.node, anchorDOM.offset, selRange.anchorNode!, selRange.anchorOffset) &&
-        isEquivalentPosition(headDOM.node, headDOM.offset, selRange.focusNode!, selRange.focusOffset))
+    if (
+      !(force || (brKludge && browser.safari)) &&
+      isEquivalentPosition(
+        anchorDOM.node,
+        anchorDOM.offset,
+        selRange.anchorNode!,
+        selRange.anchorOffset
+      ) &&
+      isEquivalentPosition(headDOM.node, headDOM.offset, selRange.focusNode!, selRange.focusOffset)
+    )
       return
 
     // Selection.extend can be used to create an 'inverted' selection
@@ -463,8 +555,7 @@ export class ViewDesc {
     if ((domSel.extend || anchor == head) && !brKludge) {
       domSel.collapse(anchorDOM.node, anchorDOM.offset)
       try {
-        if (anchor != head)
-          domSel.extend(headDOM.node, headDOM.offset)
+        if (anchor != head) domSel.extend(headDOM.node, headDOM.offset)
         domSelExtended = true
       } catch (_) {
         // In some cases with Chrome the selection is empty after calling
@@ -476,7 +567,11 @@ export class ViewDesc {
       }
     }
     if (!domSelExtended) {
-      if (anchor > head) { let tmp = anchorDOM; anchorDOM = headDOM; headDOM = tmp }
+      if (anchor > head) {
+        let tmp = anchorDOM
+        anchorDOM = headDOM
+        headDOM = tmp
+      }
       let range = document.createRange()
       range.setEnd(headDOM.node, headDOM.offset)
       range.setStart(anchorDOM.node, anchorDOM.offset)
@@ -486,7 +581,7 @@ export class ViewDesc {
   }
 
   ignoreMutation(mutation: ViewMutationRecord): boolean {
-    return !this.contentDOM && mutation.type != "selection"
+    return !this.contentDOM && mutation.type != 'selection'
   }
 
   get contentLost() {
@@ -497,18 +592,28 @@ export class ViewDesc {
   // by a DOM change, so that the next update will redraw it.
   markDirty(from: number, to: number) {
     for (let offset = 0, i = 0; i < this.children.length; i++) {
-      let child = this.children[i], end = offset + child.size
+      let child = this.children[i],
+        end = offset + child.size
       if (offset == end ? from <= end && to >= offset : from < end && to > offset) {
-        let startInside = offset + child.border, endInside = end - child.border
+        let startInside = offset + child.border,
+          endInside = end - child.border
         if (from >= startInside && to <= endInside) {
           this.dirty = from == offset || to == end ? CONTENT_DIRTY : CHILD_DIRTY
-          if (from == startInside && to == endInside &&
-              (child.contentLost || child.dom.parentNode != this.contentDOM)) child.dirty = NODE_DIRTY
+          if (
+            from == startInside &&
+            to == endInside &&
+            (child.contentLost || child.dom.parentNode != this.contentDOM)
+          )
+            child.dirty = NODE_DIRTY
           else child.markDirty(from - startInside, to - startInside)
           return
         } else {
-          child.dirty = child.dom == child.contentDOM && child.dom.parentNode == this.contentDOM && !child.children.length
-            ? CONTENT_DIRTY : NODE_DIRTY
+          child.dirty =
+            child.dom == child.contentDOM &&
+            child.dom.parentNode == this.contentDOM &&
+            !child.children.length
+              ? CONTENT_DIRTY
+              : NODE_DIRTY
         }
       }
       offset = end
@@ -524,32 +629,42 @@ export class ViewDesc {
     }
   }
 
-  get domAtom() { return false }
+  get domAtom() {
+    return false
+  }
 
-  get ignoreForCoords() { return false }
+  get ignoreForCoords() {
+    return false
+  }
 
-  get ignoreForSelection() { return false }
+  get ignoreForSelection() {
+    return false
+  }
 
-  isText(text: string) { return false }
+  isText(text: string) {
+    return false
+  }
 }
 
 // A widget desc represents a widget decoration, which is a DOM node
 // drawn between the document nodes.
 class WidgetViewDesc extends ViewDesc {
   constructor(parent: ViewDesc, readonly widget: Decoration, view: EditorView, pos: number) {
-    let self: WidgetViewDesc, dom = (widget.type as any).toDOM as WidgetConstructor
-    if (typeof dom == "function") dom = dom(view, () => {
-      if (!self) return pos
-      if (self.parent) return self.parent.posBeforeChild(self)
-    })
+    let self: WidgetViewDesc,
+      dom = (widget.type as any).toDOM as WidgetConstructor
+    if (typeof dom == 'function')
+      dom = dom(view, () => {
+        if (!self) return pos
+        if (self.parent) return self.parent.posBeforeChild(self)
+      })
     if (!widget.type.spec.raw) {
       if (dom.nodeType != 1) {
-        let wrap = document.createElement("span")
+        let wrap = document.createElement('span')
         wrap.appendChild(dom)
         dom = wrap
       }
-      ;(dom as HTMLElement).contentEditable = "false"
-      ;(dom as HTMLElement).classList.add("ProseMirror-widget")
+      ;(dom as HTMLElement).contentEditable = 'false'
+      ;(dom as HTMLElement).classList.add('ProseMirror-widget')
     }
     super(parent, [], dom, null)
     this.widget = widget
@@ -560,7 +675,9 @@ class WidgetViewDesc extends ViewDesc {
     return this.dirty == NOT_DIRTY && widget.type.eq(this.widget.type)
   }
 
-  parseRule() { return {ignore: true} }
+  parseRule() {
+    return { ignore: true }
+  }
 
   stopEvent(event: Event) {
     let stop = this.widget.spec.stopEvent
@@ -568,7 +685,7 @@ class WidgetViewDesc extends ViewDesc {
   }
 
   ignoreMutation(mutation: ViewMutationRecord) {
-    return mutation.type != "selection" || this.widget.spec.ignoreSelection
+    return mutation.type != 'selection' || this.widget.spec.ignoreSelection
   }
 
   destroy() {
@@ -576,11 +693,17 @@ class WidgetViewDesc extends ViewDesc {
     super.destroy()
   }
 
-  get domAtom() { return true }
+  get domAtom() {
+    return true
+  }
 
-  get ignoreForSelection() { return !!this.widget.type.spec.relaxedSide }
+  get ignoreForSelection() {
+    return !!this.widget.type.spec.relaxedSide
+  }
 
-  get side() { return (this.widget.type as any).side as number }
+  get side() {
+    return (this.widget.type as any).side as number
+  }
 }
 
 class CompositionViewDesc extends ViewDesc {
@@ -588,7 +711,9 @@ class CompositionViewDesc extends ViewDesc {
     super(parent, [], dom, null)
   }
 
-  get size() { return this.text.length }
+  get size() {
+    return this.text.length
+  }
 
   localPosFromDOM(dom: DOMNode, offset: number) {
     if (dom != this.textDOM) return this.posAtStart + (offset ? this.size : 0)
@@ -596,12 +721,12 @@ class CompositionViewDesc extends ViewDesc {
   }
 
   domFromPos(pos: number) {
-    return {node: this.textDOM, offset: pos}
+    return { node: this.textDOM, offset: pos }
   }
 
   ignoreMutation(mut: ViewMutationRecord) {
     return mut.type === 'characterData' && mut.target.nodeValue == mut.oldValue
-   }
+  }
 }
 
 // A mark desc represents a mark. May have multiple children,
@@ -610,24 +735,44 @@ class CompositionViewDesc extends ViewDesc {
 // some cases they will be split more often than would appear
 // necessary.
 class MarkViewDesc extends ViewDesc {
-  constructor(parent: ViewDesc, readonly mark: Mark, dom: DOMNode, contentDOM: HTMLElement, readonly spec: MarkView) {
+  constructor(
+    parent: ViewDesc,
+    readonly mark: Mark,
+    dom: DOMNode,
+    contentDOM: HTMLElement,
+    readonly spec: MarkView
+  ) {
     super(parent, [], dom, contentDOM)
   }
 
   static create(parent: ViewDesc, mark: Mark, inline: boolean, view: EditorView) {
     let custom = view.nodeViews[mark.type.name]
-    let spec: {dom: HTMLElement, contentDOM?: HTMLElement} = custom && (custom as any)(mark, view, inline)
+    let spec: { dom: HTMLElement; contentDOM?: HTMLElement } =
+      custom && (custom as any)(mark, view, inline)
     if (!spec || !spec.dom)
-      spec = (DOMSerializer.renderSpec as any)(document, mark.type.spec.toDOM!(mark, inline), null, mark.attrs) as any
-    return new MarkViewDesc(parent, mark, spec.dom, spec.contentDOM || spec.dom as HTMLElement, spec)
+      spec = (DOMSerializer.renderSpec as any)(
+        document,
+        mark.type.spec.toDOM!(mark, inline),
+        null,
+        mark.attrs
+      ) as any
+    return new MarkViewDesc(
+      parent,
+      mark,
+      spec.dom,
+      spec.contentDOM || (spec.dom as HTMLElement),
+      spec
+    )
   }
 
   parseRule() {
-    if ((this.dirty & NODE_DIRTY) || this.mark.type.spec.reparseInView) return null
-    return {mark: this.mark.type.name, attrs: this.mark.attrs, contentElement: this.contentDOM!}
+    if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView) return null
+    return { mark: this.mark.type.name, attrs: this.mark.attrs, contentElement: this.contentDOM! }
   }
 
-  matchesMark(mark: Mark) { return this.dirty != NODE_DIRTY && this.mark.eq(mark) }
+  matchesMark(mark: Mark) {
+    return this.dirty != NODE_DIRTY && this.mark.eq(mark)
+  }
 
   markDirty(from: number, to: number) {
     super.markDirty(from, to)
@@ -642,7 +787,8 @@ class MarkViewDesc extends ViewDesc {
 
   slice(from: number, to: number, view: EditorView) {
     let copy = MarkViewDesc.create(this.parent!, this.mark, true, view)
-    let nodes = this.children, size = this.size
+    let nodes = this.children,
+      size = this.size
     if (to < size) nodes = replaceNodes(nodes, to, size, view)
     if (from > 0) nodes = replaceNodes(nodes, 0, from, view)
     for (let i = 0; i < nodes.length; i++) nodes[i].parent = copy
@@ -651,7 +797,9 @@ class MarkViewDesc extends ViewDesc {
   }
 
   ignoreMutation(mutation: ViewMutationRecord) {
-    return this.spec.ignoreMutation ? this.spec.ignoreMutation(mutation) : super.ignoreMutation(mutation)
+    return this.spec.ignoreMutation
+      ? this.spec.ignoreMutation(mutation)
+      : super.ignoreMutation(mutation)
   }
 
   destroy() {
@@ -687,26 +835,49 @@ export class NodeViewDesc extends ViewDesc {
   // since it'd require exposing a whole slew of finicky
   // implementation details to the user code that they probably will
   // never need.)
-  static create(parent: ViewDesc | undefined, node: Node, outerDeco: readonly Decoration[],
-                innerDeco: DecorationSource, view: EditorView, pos: number) {
-    let custom = view.nodeViews[node.type.name], descObj: ViewDesc
-    let spec: NodeView | undefined = custom && (custom as any)(node, view, () => {
-      // (This is a function that allows the custom view to find its
-      // own position)
-      if (!descObj) return pos
-      if (descObj.parent) return descObj.parent.posBeforeChild(descObj)
-    }, outerDeco, innerDeco)
+  static create(
+    parent: ViewDesc | undefined,
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView,
+    pos: number
+  ) {
+    let custom = view.nodeViews[node.type.name],
+      descObj: ViewDesc
+    let spec: NodeView | undefined =
+      custom &&
+      (custom as any)(
+        node,
+        view,
+        () => {
+          // (This is a function that allows the custom view to find its
+          // own position)
+          if (!descObj) return pos
+          if (descObj.parent) return descObj.parent.posBeforeChild(descObj)
+        },
+        outerDeco,
+        innerDeco
+      )
 
-    let dom = spec && spec.dom, contentDOM = spec && spec.contentDOM
+    let dom = spec && spec.dom,
+      contentDOM = spec && spec.contentDOM
     if (node.isText) {
       if (!dom) dom = document.createTextNode(node.text!)
-      else if (dom.nodeType != 3) throw new RangeError("Text must be rendered as a DOM text node")
+      else if (dom.nodeType != 3) throw new RangeError('Text must be rendered as a DOM text node')
     } else if (!dom) {
-      let spec = (DOMSerializer.renderSpec as any)(document, node.type.spec.toDOM!(node), null, node.attrs)
-      ;({dom, contentDOM} = spec as {dom: DOMNode, contentDOM?: HTMLElement})
+      let spec = (DOMSerializer.renderSpec as any)(
+        document,
+        node.type.spec.toDOM!(node),
+        null,
+        node.attrs
+      )
+      ;({ dom, contentDOM } = spec as { dom: DOMNode; contentDOM?: HTMLElement })
     }
-    if (!contentDOM && !node.isText && dom.nodeName != "BR") { // Chrome gets confused by <br contenteditable=false>
-      if (!(dom as HTMLElement).hasAttribute("contenteditable")) (dom as HTMLElement).contentEditable = "false"
+    if (!contentDOM && !node.isText && dom.nodeName != 'BR') {
+      // Chrome gets confused by <br contenteditable=false>
+      if (!(dom as HTMLElement).hasAttribute('contenteditable'))
+        (dom as HTMLElement).contentEditable = 'false'
       if (node.type.spec.draggable) (dom as HTMLElement).draggable = true
     }
 
@@ -714,12 +885,32 @@ export class NodeViewDesc extends ViewDesc {
     dom = applyOuterDeco(dom, outerDeco, node)
 
     if (spec)
-      return descObj = new CustomNodeViewDesc(parent, node, outerDeco, innerDeco, dom, contentDOM || null, nodeDOM,
-                                              spec, view, pos + 1)
+      return (descObj = new CustomNodeViewDesc(
+        parent,
+        node,
+        outerDeco,
+        innerDeco,
+        dom,
+        contentDOM || null,
+        nodeDOM,
+        spec,
+        view,
+        pos + 1
+      ))
     else if (node.isText)
       return new TextViewDesc(parent, node, outerDeco, innerDeco, dom, nodeDOM, view)
     else
-      return new NodeViewDesc(parent, node, outerDeco, innerDeco, dom, contentDOM || null, nodeDOM, view, pos + 1)
+      return new NodeViewDesc(
+        parent,
+        node,
+        outerDeco,
+        innerDeco,
+        dom,
+        contentDOM || null,
+        nodeDOM,
+        view,
+        pos + 1
+      )
   }
 
   parseRule() {
@@ -729,8 +920,8 @@ export class NodeViewDesc extends ViewDesc {
     // attrs means that if the user somehow manages to change the
     // attrs in the dom, that won't be picked up. Not entirely sure
     // whether this is a problem
-    let rule: Omit<TagParseRule, "tag"> = {node: this.node.type.name, attrs: this.node.attrs}
-    if (this.node.type.whitespace == "pre") rule.preserveWhitespace = "full"
+    let rule: Omit<TagParseRule, 'tag'> = { node: this.node.type.name, attrs: this.node.attrs }
+    if (this.node.type.whitespace == 'pre') rule.preserveWhitespace = 'full'
     if (!this.contentDOM) {
       rule.getContent = () => this.node.content
     } else if (!this.contentLost) {
@@ -752,52 +943,72 @@ export class NodeViewDesc extends ViewDesc {
   }
 
   matchesNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource) {
-    return this.dirty == NOT_DIRTY && node.eq(this.node) &&
-      sameOuterDeco(outerDeco, this.outerDeco) && innerDeco.eq(this.innerDeco)
+    return (
+      this.dirty == NOT_DIRTY &&
+      node.eq(this.node) &&
+      sameOuterDeco(outerDeco, this.outerDeco) &&
+      innerDeco.eq(this.innerDeco)
+    )
   }
 
-  get size() { return this.node.nodeSize }
+  get size() {
+    return this.node.nodeSize
+  }
 
-  get border() { return this.node.isLeaf ? 0 : 1 }
+  get border() {
+    return this.node.isLeaf ? 0 : 1
+  }
 
   // Syncs `this.children` to match `this.node.content` and the local
   // decorations, possibly introducing nesting for marks. Then, in a
   // separate step, syncs the DOM inside `this.contentDOM` to
   // `this.children`.
   updateChildren(view: EditorView, pos: number) {
-    let inline = this.node.inlineContent, off = pos
+    let inline = this.node.inlineContent,
+      off = pos
     let composition = view.composing ? this.localCompositionInfo(view, pos) : null
     let localComposition = composition && composition.pos > -1 ? composition : null
     let compositionInChild = composition && composition.pos < 0
     let updater = new ViewTreeUpdater(this, localComposition && localComposition.node, view)
-    iterDeco(this.node, this.innerDeco, (widget, i, insideNode) => {
-      if (widget.spec.marks)
-        updater.syncToMarks(widget.spec.marks, inline, view)
-      else if ((widget.type as WidgetType).side >= 0 && !insideNode)
-        updater.syncToMarks(i == this.node.childCount ? Mark.none : this.node.child(i).marks, inline, view)
-      // If the next node is a desc matching this widget, reuse it,
-      // otherwise insert the widget as a new view desc.
-      updater.placeWidget(widget, view, off)
-    }, (child, outerDeco, innerDeco, i) => {
-      // Make sure the wrapping mark descs match the node's marks.
-      updater.syncToMarks(child.marks, inline, view)
-      // Try several strategies for drawing this node
-      let compIndex
-      if (updater.findNodeMatch(child, outerDeco, innerDeco, i)) {
-        // Found precise match with existing node view
-      } else if (compositionInChild && view.state.selection.from > off &&
-                 view.state.selection.to < off + child.nodeSize &&
-                 (compIndex = updater.findIndexWithChild(composition!.node)) > -1 &&
-                 updater.updateNodeAt(child, outerDeco, innerDeco, compIndex, view)) {
-        // Updated the specific node that holds the composition
-      } else if (updater.updateNextNode(child, outerDeco, innerDeco, view, i, off)) {
-        // Could update an existing node to reflect this node
-      } else {
-        // Add it as a new view
-        updater.addNode(child, outerDeco, innerDeco, view, off)
+    iterDeco(
+      this.node,
+      this.innerDeco,
+      (widget, i, insideNode) => {
+        if (widget.spec.marks) updater.syncToMarks(widget.spec.marks, inline, view)
+        else if ((widget.type as WidgetType).side >= 0 && !insideNode)
+          updater.syncToMarks(
+            i == this.node.childCount ? Mark.none : this.node.child(i).marks,
+            inline,
+            view
+          )
+        // If the next node is a desc matching this widget, reuse it,
+        // otherwise insert the widget as a new view desc.
+        updater.placeWidget(widget, view, off)
+      },
+      (child, outerDeco, innerDeco, i) => {
+        // Make sure the wrapping mark descs match the node's marks.
+        updater.syncToMarks(child.marks, inline, view)
+        // Try several strategies for drawing this node
+        let compIndex
+        if (updater.findNodeMatch(child, outerDeco, innerDeco, i)) {
+          // Found precise match with existing node view
+        } else if (
+          compositionInChild &&
+          view.state.selection.from > off &&
+          view.state.selection.to < off + child.nodeSize &&
+          (compIndex = updater.findIndexWithChild(composition!.node)) > -1 &&
+          updater.updateNodeAt(child, outerDeco, innerDeco, compIndex, view)
+        ) {
+          // Updated the specific node that holds the composition
+        } else if (updater.updateNextNode(child, outerDeco, innerDeco, view, i, off)) {
+          // Could update an existing node to reflect this node
+        } else {
+          // Add it as a new view
+          updater.addNode(child, outerDeco, innerDeco, view, off)
+        }
+        off += child.nodeSize
       }
-      off += child.nodeSize
-    })
+    )
     // Drop all remaining descs after the current position.
     updater.syncToMarks([], inline, view)
     if (this.node.isTextblock) updater.addTextblockHacks()
@@ -812,11 +1023,19 @@ export class NodeViewDesc extends ViewDesc {
     }
   }
 
-  localCompositionInfo(view: EditorView, pos: number): {node: Text, pos: number, text: string} | null {
+  localCompositionInfo(
+    view: EditorView,
+    pos: number
+  ): { node: Text; pos: number; text: string } | null {
     // Only do something if both the selection and a focused text node
     // are inside of this node
-    let {from, to} = view.state.selection
-    if (!(view.state.selection instanceof TextSelection) || from < pos || to > pos + this.node.content.size) return null
+    let { from, to } = view.state.selection
+    if (
+      !(view.state.selection instanceof TextSelection) ||
+      from < pos ||
+      to > pos + this.node.content.size
+    )
+      return null
     let textNode = view.input.compositionNode
     if (!textNode || !this.dom.contains(textNode.parentNode)) return null
 
@@ -826,19 +1045,22 @@ export class NodeViewDesc extends ViewDesc {
       // case it should overwritten)
       let text = textNode.nodeValue!
       let textPos = findTextInFragment(this.node.content, text, from - pos, to - pos)
-      return textPos < 0 ? null : {node: textNode, pos: textPos, text}
+      return textPos < 0 ? null : { node: textNode, pos: textPos, text }
     } else {
-      return {node: textNode, pos: -1, text: ""}
+      return { node: textNode, pos: -1, text: '' }
     }
   }
 
-  protectLocalComposition(view: EditorView, {node, pos, text}: {node: Text, pos: number, text: string}) {
+  protectLocalComposition(
+    view: EditorView,
+    { node, pos, text }: { node: Text; pos: number; text: string }
+  ) {
     // The node is already part of a local view desc, leave it there
     if (this.getDesc(node)) return
 
     // Create a composition view for the orphaned nodes
     let topNode: DOMNode = node
-    for (;; topNode = topNode.parentNode!) {
+    for (; ; topNode = topNode.parentNode!) {
       if (topNode.parentNode == this.contentDOM) break
       while (topNode.previousSibling) topNode.parentNode!.removeChild(topNode.previousSibling)
       while (topNode.nextSibling) topNode.parentNode!.removeChild(topNode.nextSibling)
@@ -853,14 +1075,23 @@ export class NodeViewDesc extends ViewDesc {
 
   // If this desc must be updated to match the given node decoration,
   // do so and return true.
-  update(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, view: EditorView) {
-    if (this.dirty == NODE_DIRTY ||
-        !node.sameMarkup(this.node)) return false
+  update(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView
+  ) {
+    if (this.dirty == NODE_DIRTY || !node.sameMarkup(this.node)) return false
     this.updateInner(node, outerDeco, innerDeco, view)
     return true
   }
 
-  updateInner(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, view: EditorView) {
+  updateInner(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView
+  ) {
     this.updateOuterDeco(outerDeco)
     this.node = node
     this.innerDeco = innerDeco
@@ -872,9 +1103,12 @@ export class NodeViewDesc extends ViewDesc {
     if (sameOuterDeco(outerDeco, this.outerDeco)) return
     let needsWrap = this.nodeDOM.nodeType != 1
     let oldDOM = this.dom
-    this.dom = patchOuterDeco(this.dom, this.nodeDOM,
-                              computeOuterDeco(this.outerDeco, this.node, needsWrap),
-                              computeOuterDeco(outerDeco, this.node, needsWrap))
+    this.dom = patchOuterDeco(
+      this.dom,
+      this.nodeDOM,
+      computeOuterDeco(this.outerDeco, this.node, needsWrap),
+      computeOuterDeco(outerDeco, this.node, needsWrap)
+    )
     if (this.dom != oldDOM) {
       oldDOM.pmViewDesc = undefined
       this.dom.pmViewDesc = this
@@ -884,25 +1118,35 @@ export class NodeViewDesc extends ViewDesc {
 
   // Mark this node as being the selected node.
   selectNode() {
-    if (this.nodeDOM.nodeType == 1) (this.nodeDOM as HTMLElement).classList.add("ProseMirror-selectednode")
-    if (this.contentDOM || !this.node.type.spec.draggable) (this.dom as HTMLElement).draggable = true
+    if (this.nodeDOM.nodeType == 1)
+      (this.nodeDOM as HTMLElement).classList.add('ProseMirror-selectednode')
+    if (this.contentDOM || !this.node.type.spec.draggable)
+      (this.dom as HTMLElement).draggable = true
   }
 
   // Remove selected node marking from this node.
   deselectNode() {
     if (this.nodeDOM.nodeType == 1) {
-      ;(this.nodeDOM as HTMLElement).classList.remove("ProseMirror-selectednode")
-      if (this.contentDOM || !this.node.type.spec.draggable) (this.dom as HTMLElement).removeAttribute("draggable")
+      ;(this.nodeDOM as HTMLElement).classList.remove('ProseMirror-selectednode')
+      if (this.contentDOM || !this.node.type.spec.draggable)
+        (this.dom as HTMLElement).removeAttribute('draggable')
     }
   }
 
-  get domAtom() { return this.node.isAtom }
+  get domAtom() {
+    return this.node.isAtom
+  }
 }
 
 // Create a view desc for the top-level document node, to be exported
 // and used by the view class.
-export function docViewDesc(doc: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource,
-                            dom: HTMLElement, view: EditorView): NodeViewDesc {
+export function docViewDesc(
+  doc: Node,
+  outerDeco: readonly Decoration[],
+  innerDeco: DecorationSource,
+  dom: HTMLElement,
+  view: EditorView
+): NodeViewDesc {
   applyOuterDeco(dom, outerDeco, doc)
   let docView = new NodeViewDesc(undefined, doc, outerDeco, innerDeco, dom, dom, dom, view, 0)
   if (docView.contentDOM) docView.updateChildren(view, 0)
@@ -910,22 +1154,41 @@ export function docViewDesc(doc: Node, outerDeco: readonly Decoration[], innerDe
 }
 
 class TextViewDesc extends NodeViewDesc {
-  constructor(parent: ViewDesc | undefined, node: Node, outerDeco: readonly Decoration[],
-              innerDeco: DecorationSource, dom: DOMNode, nodeDOM: DOMNode, view: EditorView) {
+  constructor(
+    parent: ViewDesc | undefined,
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    dom: DOMNode,
+    nodeDOM: DOMNode,
+    view: EditorView
+  ) {
     super(parent, node, outerDeco, innerDeco, dom, null, nodeDOM, view, 0)
   }
 
   parseRule() {
     let skip = this.nodeDOM.parentNode
     while (skip && skip != this.dom && !(skip as any).pmIsDeco) skip = skip.parentNode
-    return {skip: (skip || true) as any}
+    return { skip: (skip || true) as any }
   }
 
-  update(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, view: EditorView) {
-    if (this.dirty == NODE_DIRTY || (this.dirty != NOT_DIRTY && !this.inParent()) ||
-        !node.sameMarkup(this.node)) return false
+  update(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView
+  ) {
+    if (
+      this.dirty == NODE_DIRTY ||
+      (this.dirty != NOT_DIRTY && !this.inParent()) ||
+      !node.sameMarkup(this.node)
+    )
+      return false
     this.updateOuterDeco(outerDeco)
-    if ((this.dirty != NOT_DIRTY || node.text != this.node.text) && node.text != this.nodeDOM.nodeValue) {
+    if (
+      (this.dirty != NOT_DIRTY || node.text != this.node.text) &&
+      node.text != this.nodeDOM.nodeValue
+    ) {
       this.nodeDOM.nodeValue = node.text!
       if (view.trackWrites == this.nodeDOM) view.trackWrites = null
     }
@@ -941,7 +1204,7 @@ class TextViewDesc extends NodeViewDesc {
   }
 
   domFromPos(pos: number) {
-    return {node: this.nodeDOM, offset: pos}
+    return { node: this.nodeDOM, offset: pos }
   }
 
   localPosFromDOM(dom: DOMNode, offset: number, bias: number) {
@@ -950,11 +1213,12 @@ class TextViewDesc extends NodeViewDesc {
   }
 
   ignoreMutation(mutation: ViewMutationRecord) {
-    return mutation.type != "characterData" && mutation.type != "selection"
+    return mutation.type != 'characterData' && mutation.type != 'selection'
   }
 
   slice(from: number, to: number, view: EditorView) {
-    let node = this.node.cut(from, to), dom = document.createTextNode(node.text!)
+    let node = this.node.cut(from, to),
+      dom = document.createTextNode(node.text!)
     return new TextViewDesc(this.parent, node, this.outerDeco, this.innerDeco, dom, dom, view)
   }
 
@@ -964,34 +1228,60 @@ class TextViewDesc extends NodeViewDesc {
       this.dirty = NODE_DIRTY
   }
 
-  get domAtom() { return false }
+  get domAtom() {
+    return false
+  }
 
-  isText(text: string) { return this.node.text == text }
+  isText(text: string) {
+    return this.node.text == text
+  }
 }
 
 // A dummy desc used to tag trailing BR or IMG nodes created to work
 // around contentEditable terribleness.
 class TrailingHackViewDesc extends ViewDesc {
-  parseRule() { return {ignore: true} }
-  matchesHack(nodeName: string) { return this.dirty == NOT_DIRTY && this.dom.nodeName == nodeName }
-  get domAtom() { return true }
-  get ignoreForCoords() { return this.dom.nodeName == "IMG" }
+  parseRule() {
+    return { ignore: true }
+  }
+  matchesHack(nodeName: string) {
+    return this.dirty == NOT_DIRTY && this.dom.nodeName == nodeName
+  }
+  get domAtom() {
+    return true
+  }
+  get ignoreForCoords() {
+    return this.dom.nodeName == 'IMG'
+  }
 }
 
 // A separate subclass is used for customized node views, so that the
 // extra checks only have to be made for nodes that are actually
 // customized.
 class CustomNodeViewDesc extends NodeViewDesc {
-  constructor(parent: ViewDesc | undefined, node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource,
-              dom: DOMNode, contentDOM: HTMLElement | null, nodeDOM: DOMNode, readonly spec: NodeView,
-              view: EditorView, pos: number) {
+  constructor(
+    parent: ViewDesc | undefined,
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    dom: DOMNode,
+    contentDOM: HTMLElement | null,
+    nodeDOM: DOMNode,
+    readonly spec: NodeView,
+    view: EditorView,
+    pos: number
+  ) {
     super(parent, node, outerDeco, innerDeco, dom, contentDOM, nodeDOM, view, pos)
   }
 
   // A custom `update` method gets to decide whether the update goes
   // through. If it does, and there's a `contentDOM` node, our logic
   // updates the children.
-  update(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, view: EditorView) {
+  update(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView
+  ) {
     if (this.dirty == NODE_DIRTY) return false
     if (this.spec.update && (this.node.type == node.type || this.spec.multiType)) {
       let result = this.spec.update(node, outerDeco, innerDeco)
@@ -1013,7 +1303,8 @@ class CustomNodeViewDesc extends NodeViewDesc {
   }
 
   setSelection(anchor: number, head: number, view: EditorView, force: boolean) {
-    this.spec.setSelection ? this.spec.setSelection(anchor, head, view.root)
+    this.spec.setSelection
+      ? this.spec.setSelection(anchor, head, view.root)
       : super.setSelection(anchor, head, view, force)
   }
 
@@ -1027,7 +1318,9 @@ class CustomNodeViewDesc extends NodeViewDesc {
   }
 
   ignoreMutation(mutation: ViewMutationRecord) {
-    return this.spec.ignoreMutation ? this.spec.ignoreMutation(mutation) : super.ignoreMutation(mutation)
+    return this.spec.ignoreMutation
+      ? this.spec.ignoreMutation(mutation)
+      : super.ignoreMutation(mutation)
   }
 }
 
@@ -1035,11 +1328,16 @@ class CustomNodeViewDesc extends NodeViewDesc {
 // with the given array of view descs, recursing into mark descs
 // because this should sync the subtree for a whole node at a time.
 function renderDescs(parentDOM: HTMLElement, descs: readonly ViewDesc[], view: EditorView) {
-  let dom = parentDOM.firstChild, written = false
+  let dom = parentDOM.firstChild,
+    written = false
   for (let i = 0; i < descs.length; i++) {
-    let desc = descs[i], childDOM = desc.dom
+    let desc = descs[i],
+      childDOM = desc.dom
     if (childDOM.parentNode == parentDOM) {
-      while (childDOM != dom) { dom = rm(dom!); written = true }
+      while (childDOM != dom) {
+        dom = rm(dom!)
+        written = true
+      }
       dom = dom.nextSibling
     } else {
       written = true
@@ -1051,56 +1349,72 @@ function renderDescs(parentDOM: HTMLElement, descs: readonly ViewDesc[], view: E
       dom = pos ? pos.nextSibling : parentDOM.firstChild
     }
   }
-  while (dom) { dom = rm(dom); written = true }
+  while (dom) {
+    dom = rm(dom)
+    written = true
+  }
   if (written && view.trackWrites == parentDOM) view.trackWrites = null
 }
 
-type OuterDecoLevel = {[attr: string]: string}
+type OuterDecoLevel = { [attr: string]: string }
 
-const OuterDecoLevel: {new (nodeName?: string): OuterDecoLevel} = function(this: any, nodeName?: string) {
+const OuterDecoLevel: { new (nodeName?: string): OuterDecoLevel } = function (
+  this: any,
+  nodeName?: string
+) {
   if (nodeName) this.nodeName = nodeName
 } as any
 OuterDecoLevel.prototype = Object.create(null)
 
-const noDeco = [new OuterDecoLevel]
+const noDeco = [new OuterDecoLevel()]
 
 function computeOuterDeco(outerDeco: readonly Decoration[], node: Node, needsWrap: boolean) {
   if (outerDeco.length == 0) return noDeco
 
-  let top = needsWrap ? noDeco[0] : new OuterDecoLevel, result = [top]
+  let top = needsWrap ? noDeco[0] : new OuterDecoLevel(),
+    result = [top]
 
   for (let i = 0; i < outerDeco.length; i++) {
     let attrs = (outerDeco[i].type as NodeType).attrs
     if (!attrs) continue
-    if (attrs.nodeName)
-      result.push(top = new OuterDecoLevel(attrs.nodeName))
+    if (attrs.nodeName) result.push((top = new OuterDecoLevel(attrs.nodeName)))
 
     for (let name in attrs) {
       let val = attrs[name]
       if (val == null) continue
       if (needsWrap && result.length == 1)
-        result.push(top = new OuterDecoLevel(node.isInline ? "span" : "div"))
-      if (name == "class") top.class = (top.class ? top.class + " " : "") + val
-      else if (name == "style") top.style = (top.style ? top.style + ";" : "") + val
-      else if (name != "nodeName") top[name] = val
+        result.push((top = new OuterDecoLevel(node.isInline ? 'span' : 'div')))
+      if (name == 'class') top.class = (top.class ? top.class + ' ' : '') + val
+      else if (name == 'style') top.style = (top.style ? top.style + ';' : '') + val
+      else if (name != 'nodeName') top[name] = val
     }
   }
 
   return result
 }
 
-function patchOuterDeco(outerDOM: DOMNode, nodeDOM: DOMNode,
-                        prevComputed: readonly OuterDecoLevel[], curComputed: readonly OuterDecoLevel[]) {
+function patchOuterDeco(
+  outerDOM: DOMNode,
+  nodeDOM: DOMNode,
+  prevComputed: readonly OuterDecoLevel[],
+  curComputed: readonly OuterDecoLevel[]
+) {
   // Shortcut for trivial case
   if (prevComputed == noDeco && curComputed == noDeco) return nodeDOM
 
   let curDOM = nodeDOM
   for (let i = 0; i < curComputed.length; i++) {
-    let deco = curComputed[i], prev = prevComputed[i]
+    let deco = curComputed[i],
+      prev = prevComputed[i]
     if (i) {
       let parent: DOMNode | null
-      if (prev && prev.nodeName == deco.nodeName && curDOM != outerDOM &&
-          (parent = curDOM.parentNode) && parent.nodeName!.toLowerCase() == deco.nodeName) {
+      if (
+        prev &&
+        prev.nodeName == deco.nodeName &&
+        curDOM != outerDOM &&
+        (parent = curDOM.parentNode) &&
+        parent.nodeName!.toLowerCase() == deco.nodeName
+      ) {
         curDOM = parent
       } else {
         parent = document.createElement(deco.nodeName)
@@ -1115,31 +1429,33 @@ function patchOuterDeco(outerDOM: DOMNode, nodeDOM: DOMNode,
   return curDOM
 }
 
-function patchAttributes(dom: HTMLElement, prev: {[name: string]: string}, cur: {[name: string]: string}) {
+function patchAttributes(
+  dom: HTMLElement,
+  prev: { [name: string]: string },
+  cur: { [name: string]: string }
+) {
   for (let name in prev)
-    if (name != "class" && name != "style" && name != "nodeName" && !(name in cur))
+    if (name != 'class' && name != 'style' && name != 'nodeName' && !(name in cur))
       dom.removeAttribute(name)
   for (let name in cur)
-    if (name != "class" && name != "style" && name != "nodeName" && cur[name] != prev[name])
+    if (name != 'class' && name != 'style' && name != 'nodeName' && cur[name] != prev[name])
       dom.setAttribute(name, cur[name])
   if (prev.class != cur.class) {
-    let prevList = prev.class ? prev.class.split(" ").filter(Boolean) : []
-    let curList = cur.class ? cur.class.split(" ").filter(Boolean) : []
-    for (let i = 0; i < prevList.length; i++) if (curList.indexOf(prevList[i]) == -1)
-      dom.classList.remove(prevList[i])
-    for (let i = 0; i < curList.length; i++) if (prevList.indexOf(curList[i]) == -1)
-      dom.classList.add(curList[i])
-    if (dom.classList.length == 0)
-      dom.removeAttribute("class")
+    let prevList = prev.class ? prev.class.split(' ').filter(Boolean) : []
+    let curList = cur.class ? cur.class.split(' ').filter(Boolean) : []
+    for (let i = 0; i < prevList.length; i++)
+      if (curList.indexOf(prevList[i]) == -1) dom.classList.remove(prevList[i])
+    for (let i = 0; i < curList.length; i++)
+      if (prevList.indexOf(curList[i]) == -1) dom.classList.add(curList[i])
+    if (dom.classList.length == 0) dom.removeAttribute('class')
   }
   if (prev.style != cur.style) {
     if (prev.style) {
-      let prop = /\s*([\w\-\xa1-\uffff]+)\s*:(?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|\(.*?\)|[^;])*/g, m
-      while (m = prop.exec(prev.style))
-        dom.style.removeProperty(m[1])
+      let prop = /\s*([\w\-\xa1-\uffff]+)\s*:(?:"(?:\\.|[^"])*"|'(?:\\.|[^'])*'|\(.*?\)|[^;])*/g,
+        m
+      while ((m = prop.exec(prev.style))) dom.style.removeProperty(m[1])
     }
-    if (cur.style)
-      dom.style.cssText += cur.style
+    if (cur.style) dom.style.cssText += cur.style
   }
 }
 
@@ -1171,7 +1487,7 @@ class ViewTreeUpdater {
   stack: (ViewDesc | number)[] = []
   // Tracks whether anything was changed
   changed = false
-  preMatch: {index: number, matched: Map<ViewDesc, number>, matches: readonly ViewDesc[]}
+  preMatch: { index: number; matched: Map<ViewDesc, number>; matches: readonly ViewDesc[] }
   top: ViewDesc
 
   constructor(top: NodeViewDesc, readonly lock: DOMNode | null, private readonly view: EditorView) {
@@ -1196,11 +1512,16 @@ class ViewTreeUpdater {
   // Sync the current stack of mark descs with the given array of
   // marks, reusing existing mark descs when possible.
   syncToMarks(marks: readonly Mark[], inline: boolean, view: EditorView) {
-    let keep = 0, depth = this.stack.length >> 1
+    let keep = 0,
+      depth = this.stack.length >> 1
     let maxKeep = Math.min(depth, marks.length)
-    while (keep < maxKeep &&
-           (keep == depth - 1 ? this.top : this.stack[(keep + 1) << 1] as ViewDesc)
-             .matchesMark(marks[keep]) && marks[keep].type.spec.spanning !== false)
+    while (
+      keep < maxKeep &&
+      (keep == depth - 1 ? this.top : (this.stack[(keep + 1) << 1] as ViewDesc)).matchesMark(
+        marks[keep]
+      ) &&
+      marks[keep].type.spec.spanning !== false
+    )
       keep++
 
     while (keep < depth) {
@@ -1215,7 +1536,10 @@ class ViewTreeUpdater {
       let found = -1
       for (let i = this.index; i < Math.min(this.index + 3, this.top.children.length); i++) {
         let next = this.top.children[i]
-        if (next.matchesMark(marks[depth]) && !this.isLocked(next.dom)) { found = i; break }
+        if (next.matchesMark(marks[depth]) && !this.isLocked(next.dom)) {
+          found = i
+          break
+        }
       }
       if (found > -1) {
         if (found > this.index) {
@@ -1236,11 +1560,19 @@ class ViewTreeUpdater {
 
   // Try to find a node desc matching the given data. Skip over it and
   // return true when successful.
-  findNodeMatch(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, index: number): boolean {
-    let found = -1, targetDesc
-    if (index >= this.preMatch.index &&
-        (targetDesc = this.preMatch.matches[index - this.preMatch.index]).parent == this.top &&
-        targetDesc.matchesNode(node, outerDeco, innerDeco)) {
+  findNodeMatch(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    index: number
+  ): boolean {
+    let found = -1,
+      targetDesc
+    if (
+      index >= this.preMatch.index &&
+      (targetDesc = this.preMatch.matches[index - this.preMatch.index]).parent == this.top &&
+      targetDesc.matchesNode(node, outerDeco, innerDeco)
+    ) {
       found = this.top.children.indexOf(targetDesc, this.index)
     } else {
       for (let i = this.index, e = Math.min(this.top.children.length, i + 5); i < e; i++) {
@@ -1257,7 +1589,13 @@ class ViewTreeUpdater {
     return true
   }
 
-  updateNodeAt(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, index: number, view: EditorView) {
+  updateNodeAt(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    index: number,
+    view: EditorView
+  ) {
     let child = this.top.children[index] as NodeViewDesc
     if (child.dirty == NODE_DIRTY && child.dom == child.contentDOM) child.dirty = CONTENT_DIRTY
     if (!child.update(node, outerDeco, innerDeco, view)) return false
@@ -1272,9 +1610,10 @@ class ViewTreeUpdater {
       if (!parent) return -1
       if (parent == this.top.contentDOM) {
         let desc = domNode.pmViewDesc
-        if (desc) for (let i = this.index; i < this.top.children.length; i++) {
-          if (this.top.children[i] == desc) return i
-        }
+        if (desc)
+          for (let i = this.index; i < this.top.children.length; i++) {
+            if (this.top.children[i] == desc) return i
+          }
         return -1
       }
       domNode = parent
@@ -1283,27 +1622,44 @@ class ViewTreeUpdater {
 
   // Try to update the next node, if any, to the given data. Checks
   // pre-matches to avoid overwriting nodes that could still be used.
-  updateNextNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource,
-                 view: EditorView, index: number, pos: number): boolean {
+  updateNextNode(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView,
+    index: number,
+    pos: number
+  ): boolean {
     for (let i = this.index; i < this.top.children.length; i++) {
       let next = this.top.children[i]
       if (next instanceof NodeViewDesc) {
         let preMatch = this.preMatch.matched.get(next)
         if (preMatch != null && preMatch != index) return false
-        let nextDOM = next.dom, updated
+        let nextDOM = next.dom,
+          updated
 
         // Can't update if nextDOM is or contains this.lock, except if
         // it's a text node whose content already matches the new text
         // and whose decorations match the new ones.
-        let locked = this.isLocked(nextDOM) &&
-            !(node.isText && next.node && next.node.isText && next.nodeDOM.nodeValue == node.text &&
-              next.dirty != NODE_DIRTY && sameOuterDeco(outerDeco, next.outerDeco))
+        let locked =
+          this.isLocked(nextDOM) &&
+          !(
+            node.isText &&
+            next.node &&
+            next.node.isText &&
+            next.nodeDOM.nodeValue == node.text &&
+            next.dirty != NODE_DIRTY &&
+            sameOuterDeco(outerDeco, next.outerDeco)
+          )
         if (!locked && next.update(node, outerDeco, innerDeco, view)) {
           this.destroyBetween(this.index, i)
           if (next.dom != nextDOM) this.changed = true
           this.index++
           return true
-        } else if (!locked && (updated = this.recreateWrapper(next, node, outerDeco, innerDeco, view, pos))) {
+        } else if (
+          !locked &&
+          (updated = this.recreateWrapper(next, node, outerDeco, innerDeco, view, pos))
+        ) {
           this.destroyBetween(this.index, i)
           this.top.children[this.index] = updated
           if (updated.contentDOM) {
@@ -1323,11 +1679,23 @@ class ViewTreeUpdater {
 
   // When a node with content is replaced by a different node with
   // identical content, move over its children.
-  recreateWrapper(next: NodeViewDesc, node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource,
-                  view: EditorView, pos: number) {
-    if (next.dirty || node.isAtom || !next.children.length ||
-        !next.node.content.eq(node.content) ||
-        !sameOuterDeco(outerDeco, next.outerDeco) || !innerDeco.eq(next.innerDeco)) return null
+  recreateWrapper(
+    next: NodeViewDesc,
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView,
+    pos: number
+  ) {
+    if (
+      next.dirty ||
+      node.isAtom ||
+      !next.children.length ||
+      !next.node.content.eq(node.content) ||
+      !sameOuterDeco(outerDeco, next.outerDeco) ||
+      !innerDeco.eq(next.innerDeco)
+    )
+      return null
     let wrapper = NodeViewDesc.create(this.top, node, outerDeco, innerDeco, view, pos)
     if (wrapper.contentDOM) {
       wrapper.children = next.children
@@ -1339,7 +1707,13 @@ class ViewTreeUpdater {
   }
 
   // Insert the node as a newly created node desc.
-  addNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, view: EditorView, pos: number) {
+  addNode(
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    view: EditorView,
+    pos: number
+  ) {
     let desc = NodeViewDesc.create(this.top, node, outerDeco, innerDeco, view, pos)
     if (desc.contentDOM) desc.updateChildren(view, pos + 1)
     this.top.children.splice(this.index++, 0, desc)
@@ -1348,8 +1722,11 @@ class ViewTreeUpdater {
 
   placeWidget(widget: Decoration, view: EditorView, pos: number) {
     let next = this.index < this.top.children.length ? this.top.children[this.index] : null
-    if (next && next.matchesWidget(widget) &&
-        (widget == (next as WidgetViewDesc).widget || !(next as any).widget.type.toDOM.parentNode)) {
+    if (
+      next &&
+      next.matchesWidget(widget) &&
+      (widget == (next as WidgetViewDesc).widget || !(next as any).widget.type.toDOM.parentNode)
+    ) {
       this.index++
     } else {
       let desc = new WidgetViewDesc(this.top, widget, view, pos)
@@ -1361,33 +1738,44 @@ class ViewTreeUpdater {
   // Make sure a textblock looks and behaves correctly in
   // contentEditable.
   addTextblockHacks() {
-    let lastChild = this.top.children[this.index - 1], parent = this.top
+    let lastChild = this.top.children[this.index - 1],
+      parent = this.top
     while (lastChild instanceof MarkViewDesc) {
       parent = lastChild
       lastChild = parent.children[parent.children.length - 1]
     }
 
-    if (!lastChild || // Empty textblock
-        !(lastChild instanceof TextViewDesc) ||
-        /\n$/.test(lastChild.node.text!) ||
-        (this.view.requiresGeckoHackNode && /\s$/.test(lastChild.node.text!))) {
+    if (
+      !lastChild || // Empty textblock
+      !(lastChild instanceof TextViewDesc) ||
+      /\n$/.test(lastChild.node.text!) ||
+      (this.view.requiresGeckoHackNode && /\s$/.test(lastChild.node.text!))
+    ) {
       // Avoid bugs in Safari's cursor drawing (#1165) and Chrome's mouse selection (#1152)
-      if ((browser.safari || browser.chrome) && lastChild && (lastChild.dom as HTMLElement).contentEditable == "false")
-        this.addHackNode("IMG", parent)
-      this.addHackNode("BR", this.top)
+      if (
+        (browser.safari || browser.chrome) &&
+        lastChild &&
+        (lastChild.dom as HTMLElement).contentEditable == 'false'
+      )
+        this.addHackNode('IMG', parent)
+      this.addHackNode('BR', this.top)
     }
   }
 
   addHackNode(nodeName: string, parent: ViewDesc) {
-    if (parent == this.top && this.index < parent.children.length && parent.children[this.index].matchesHack(nodeName)) {
+    if (
+      parent == this.top &&
+      this.index < parent.children.length &&
+      parent.children[this.index].matchesHack(nodeName)
+    ) {
       this.index++
     } else {
       let dom = document.createElement(nodeName)
-      if (nodeName == "IMG") {
-        dom.className = "ProseMirror-separator"
-        ;(dom as HTMLImageElement).alt = ""
+      if (nodeName == 'IMG') {
+        dom.className = 'ProseMirror-separator'
+        ;(dom as HTMLImageElement).alt = ''
       }
-      if (nodeName == "BR") dom.className = "ProseMirror-trailingBreak"
+      if (nodeName == 'BR') dom.className = 'ProseMirror-trailingBreak'
       let hack = new TrailingHackViewDesc(this.top, [], dom, null)
       if (parent != this.top) parent.children.push(hack)
       else parent.children.splice(this.index++, 0, hack)
@@ -1396,7 +1784,10 @@ class ViewTreeUpdater {
   }
 
   isLocked(node: DOMNode) {
-    return this.lock && (node == this.lock || node.nodeType == 1 && node.contains(this.lock.parentNode))
+    return (
+      this.lock &&
+      (node == this.lock || (node.nodeType == 1 && node.contains(this.lock.parentNode)))
+    )
   }
 }
 
@@ -1406,10 +1797,14 @@ class ViewTreeUpdater {
 // is part of the sequence of matched nodes at the end of the
 // fragment.
 function preMatch(
-  frag: Fragment, parentDesc: ViewDesc
-): {index: number, matched: Map<ViewDesc, number>, matches: readonly ViewDesc[]} {
-  let curDesc = parentDesc, descI = curDesc.children.length
-  let fI = frag.childCount, matched = new Map, matches = []
+  frag: Fragment,
+  parentDesc: ViewDesc
+): { index: number; matched: Map<ViewDesc, number>; matches: readonly ViewDesc[] } {
+  let curDesc = parentDesc,
+    descI = curDesc.children.length
+  let fI = frag.childCount,
+    matched = new Map(),
+    matches = []
   outer: while (fI > 0) {
     let desc
     for (;;) {
@@ -1438,7 +1833,7 @@ function preMatch(
     matched.set(desc, fI)
     matches.push(desc)
   }
-  return {index: fI, matched, matches: matches.reverse()}
+  return { index: fI, matched, matches: matches.reverse() }
 }
 
 function compareSide(a: Decoration, b: Decoration) {
@@ -1453,9 +1848,15 @@ function iterDeco(
   parent: Node,
   deco: DecorationSource,
   onWidget: (widget: Decoration, index: number, insideNode: boolean) => void,
-  onNode: (node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource, index: number) => void
+  onNode: (
+    node: Node,
+    outerDeco: readonly Decoration[],
+    innerDeco: DecorationSource,
+    index: number
+  ) => void
 ) {
-  let locals = deco.locals(parent), offset = 0
+  let locals = deco.locals(parent),
+    offset = 0
   // Simple, cheap variant for when there are no local decorations
   if (locals.length == 0) {
     for (let i = 0; i < parent.childCount; i++) {
@@ -1466,8 +1867,10 @@ function iterDeco(
     return
   }
 
-  let decoIndex = 0, active = [], restNode = null
-  for (let parentIndex = 0;;) {
+  let decoIndex = 0,
+    active = [],
+    restNode = null
+  for (let parentIndex = 0; ; ) {
     let widget, widgets
     while (decoIndex < locals.length && locals[decoIndex].to == offset) {
       let next = locals[decoIndex++]
@@ -1498,13 +1901,18 @@ function iterDeco(
     }
 
     for (let i = 0; i < active.length; i++) if (active[i].to <= offset) active.splice(i--, 1)
-    while (decoIndex < locals.length && locals[decoIndex].from <= offset && locals[decoIndex].to > offset)
+    while (
+      decoIndex < locals.length &&
+      locals[decoIndex].from <= offset &&
+      locals[decoIndex].to > offset
+    )
       active.push(locals[decoIndex++])
 
     let end = offset + child.nodeSize
     if (child.isText) {
       let cutAt = end
-      if (decoIndex < locals.length && locals[decoIndex].from < cutAt) cutAt = locals[decoIndex].from
+      if (decoIndex < locals.length && locals[decoIndex].from < cutAt)
+        cutAt = locals[decoIndex].from
       for (let i = 0; i < active.length; i++) if (active[i].to < cutAt) cutAt = active[i].to
       if (cutAt < end) {
         restNode = child.cut(cutAt - offset)
@@ -1525,9 +1933,9 @@ function iterDeco(
 // List markers in Mobile Safari will mysteriously disappear
 // sometimes. This works around that.
 function iosHacks(dom: HTMLElement) {
-  if (dom.nodeName == "UL" || dom.nodeName == "OL") {
+  if (dom.nodeName == 'UL' || dom.nodeName == 'OL') {
     let oldCSS = dom.style.cssText
-    dom.style.cssText = oldCSS + "; list-style: square !important"
+    dom.style.cssText = oldCSS + '; list-style: square !important'
     window.getComputedStyle(dom).listStyle
     dom.style.cssText = oldCSS
   }
@@ -1535,8 +1943,9 @@ function iosHacks(dom: HTMLElement) {
 
 // Find a piece of text in an inline fragment, overlapping from-to
 function findTextInFragment(frag: Fragment, text: string, from: number, to: number) {
-  for (let i = 0, pos = 0; i < frag.childCount && pos <= to;) {
-    let child = frag.child(i++), childStart = pos
+  for (let i = 0, pos = 0; i < frag.childCount && pos <= to; ) {
+    let child = frag.child(i++),
+      childStart = pos
     pos += child.nodeSize
     if (!child.isText) continue
     let str = child.text!
@@ -1550,10 +1959,12 @@ function findTextInFragment(frag: Fragment, text: string, from: number, to: numb
       if (pos >= to && str.slice(to - text.length - childStart, to - childStart) == text)
         return to - text.length
       let found = childStart < to ? str.lastIndexOf(text, to - childStart - 1) : -1
-      if (found >= 0 && found + text.length + childStart >= from)
-        return childStart + found
-      if (from == to && str.length >= (to + text.length) - childStart &&
-          str.slice(to - childStart, to - childStart + text.length) == text)
+      if (found >= 0 && found + text.length + childStart >= from) return childStart + found
+      if (
+        from == to &&
+        str.length >= to + text.length - childStart &&
+        str.slice(to - childStart, to - childStart + text.length) == text
+      )
         return to
     }
   }
@@ -1565,19 +1976,29 @@ function findTextInFragment(frag: Fragment, text: string, from: number, to: numb
 // of the rest of this code, which tends to create nodes with the
 // right shape in one go, rather than messing with them after
 // creation, but is necessary in the composition hack.
-function replaceNodes(nodes: readonly ViewDesc[], from: number, to: number, view: EditorView, replacement?: ViewDesc) {
+function replaceNodes(
+  nodes: readonly ViewDesc[],
+  from: number,
+  to: number,
+  view: EditorView,
+  replacement?: ViewDesc
+) {
   let result = []
   for (let i = 0, off = 0; i < nodes.length; i++) {
-    let child = nodes[i], start = off, end = off += child.size
+    let child = nodes[i],
+      start = off,
+      end = (off += child.size)
     if (start >= to || end <= from) {
       result.push(child)
     } else {
-      if (start < from) result.push((child as MarkViewDesc | TextViewDesc).slice(0, from - start, view))
+      if (start < from)
+        result.push((child as MarkViewDesc | TextViewDesc).slice(0, from - start, view))
       if (replacement) {
         result.push(replacement)
         replacement = undefined
       }
-      if (end > to) result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
+      if (end > to)
+        result.push((child as MarkViewDesc | TextViewDesc).slice(to - start, child.size, view))
     }
   }
   return result
