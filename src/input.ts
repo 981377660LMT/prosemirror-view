@@ -538,6 +538,7 @@ function inOrNearComposition(view: EditorView, event: Event) {
 // Drop active composition after 5 seconds of inactivity on Android
 const timeoutComposition = browser.android ? 5000 : -1
 
+// 输入法（IME）会在浏览器中创建自己的临时 DOM
 editHandlers.compositionstart = editHandlers.compositionupdate = view => {
   if (!view.composing) {
     view.domObserver.flush()
